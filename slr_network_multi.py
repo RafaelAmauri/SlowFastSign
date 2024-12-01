@@ -90,13 +90,17 @@ class SLRModel(nn.Module):
         lgt = conv1d_outputs['feat_len']
         
         outputs = []
+        confidences = [] # To store the confidences
+
         for i in range(len(conv1d_outputs['visual_feat'])):
             tm_outputs = self.temporal_model[i](conv1d_outputs['visual_feat'][i], lgt)
+            pred_logits = self.classifier[i](tm_outputs['predictions'])
             outputs.append(self.classifier[i](tm_outputs['predictions']))
 
-        pred = None if self.training \
+
+        pred, probabilitiesSents, beamScoreSents = (None, None, None) if self.training \
             else self.decoder.decode(outputs[0], lgt, batch_first=False, probs=False)
-        conv_pred = None if self.training \
+        conv_pred, probabilitiesConv, beamScoreConv = (None, None, None) if self.training \
             else self.decoder.decode(conv1d_outputs['conv_logits'][0], lgt, batch_first=False, probs=False)
 
         return {
@@ -107,6 +111,10 @@ class SLRModel(nn.Module):
             "sequence_logits": outputs,
             "conv_sents": conv_pred,
             "recognized_sents": pred,
+            "confidences_sents": probabilitiesSents,
+            "confidences_conv": probabilitiesConv,
+            "beamScoreSents": beamScoreSents,
+            "beamScoreConvs": beamScoreConv
         }
 
     def criterion_calculation(self, ret_dict, label, label_lgt):
