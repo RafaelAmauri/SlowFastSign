@@ -69,6 +69,8 @@ def seq_eval(cfg, loader, model, device, mode, epoch, work_dir, recoder,
         label_lgt = device.data_to_device(data[3])
         with torch.no_grad():
             ret_dict = model(vid, vid_lgt, label=label, label_lgt=label_lgt)
+            for k, v in ret_dict.items():
+                print(k, v)
 
         total_info += [file_name.split("|")[0] for file_name in data[-1]]
         total_sent += ret_dict['recognized_sents']
@@ -153,6 +155,7 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
 
 def write2file(path, info, output):
     filereader = open(path, "w")
+    print(f"Writing to {path}: {output}
     for sample_idx, sample in enumerate(output):
         for word_idx, word in enumerate(sample):
             filereader.writelines(
