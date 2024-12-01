@@ -118,7 +118,7 @@ class Processor():
             # train_wer = seq_eval(self.arg, self.data_loader["train_eval"], self.model, self.device,
             #                      "train", 6667, self.arg.work_dir, self.recoder, self.arg.evaluate_tool)
             #dev_wer = seq_eval(self.arg, self.data_loader["dev"], self.model, self.device,
-                               "dev", 6667, self.arg.work_dir, self.recoder, self.arg.evaluate_tool)
+            #            "dev", 6667, self.arg.work_dir, self.recoder, self.arg.evaluate_tool)
             test_wer = seq_eval(self.arg, self.data_loader["test"], self.model, self.device,
                                 "test", 6667, self.arg.work_dir, self.recoder, self.arg.evaluate_tool)
             self.recoder.print_log('Evaluation Done.\n')
