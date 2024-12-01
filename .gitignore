@@ -1,2 +1,8 @@
 **/__pycache__
 .DS_Store
+work_dir/*
+ctcdecode/*
+dataset/*
+ckpt/*
+best_checkpoints/*
+pyrightconfig.json
