@@ -155,7 +155,7 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
 
 def write2file(path, info, output):
     filereader = open(path, "w")
-    print(f"Writing to {path}: {output}
+    print(f"Writing to {path}: {output}")
     for sample_idx, sample in enumerate(output):
         for word_idx, word in enumerate(sample):
             filereader.writelines(
