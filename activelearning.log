@@ -1,0 +1,5 @@
+2024-12-24 14:25:48,390 - INFO - Created /workspace/SlowFastSign/dataset/phoenix2014-30percent/phoenix-2014-multisigner
+2024-12-24 14:25:48,390 - INFO - Created symlink /workspace/SlowFastSign/dataset/phoenix2014/phoenix-2014-multisigner/evaluation -> /workspace/SlowFastSign/dataset/phoenix2014-30percent/phoenix-2014-multisigner/evaluation
+2024-12-24 14:25:48,390 - INFO - Created symlink /workspace/SlowFastSign/dataset/phoenix2014/phoenix-2014-multisigner/features -> /workspace/SlowFastSign/dataset/phoenix2014-30percent/phoenix-2014-multisigner/features
+2024-12-24 14:25:48,390 - INFO - Created symlink /workspace/SlowFastSign/dataset/phoenix2014/phoenix-2014-multisigner/models -> /workspace/SlowFastSign/dataset/phoenix2014-30percent/phoenix-2014-multisigner/models
+2024-12-24 14:25:48,390 - INFO - Created /workspace/SlowFastSign/dataset/phoenix2014-30percent/phoenix-2014-multisigner/annotations/manual

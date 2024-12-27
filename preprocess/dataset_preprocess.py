@@ -128,4 +128,5 @@ if __name__ == '__main__':
     save_dict = {}
     for idx, (key, value) in enumerate(sign_dict):
         save_dict[key] = [idx + 1, value]
-    np.save(f"./{args.dataset}/gloss_dict.npy", save_dict)
+    
+    # np.save(f"./{args.dataset}/gloss_dict.npy", save_dict)

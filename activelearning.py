@@ -13,11 +13,18 @@
     # Voltar ao passo 1 e repetir até acabar as amostras
 
 
+import logging
 import random
 import shutil
 import os
 
 from argparse import ArgumentParser
+
+logging.basicConfig(
+    filename='activelearning.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 
 def labelDataPoints(datasetPath, nLabelings, selectedSamples=None, isFirstLabelingLoop=False):
@@ -105,6 +112,9 @@ def make_parser():
     parser.add_argument('-p', '--labeling-percentage', type=float, required=True,
                         help="The percentage of the dataset that will go to the labeled subset when splitting.")
 
+    parser.add_argument('-m', '--mode', type=str, required=True, choices=["random", "active"],
+                        help="The if active, uses the new architecture for active learning. If random, uses random sampling.")
+
     return parser
 
 
@@ -157,48 +167,36 @@ def validateParams(args):
                               ask you to deal with this before running the program again :)")
 
 
-    print(f"Creating {args.dataset_path}-labeled and {args.dataset_path}-unlabeled now!")
+    logging.info(f"Creating {args.dataset_path}-labeled and {args.dataset_path}-unlabeled now!")
     os.makedirs(f"{args.dataset_path}-labeled")
     os.makedirs(f"{args.dataset_path}-unlabeled")
 
 
-def splitDataset(datasetPath):
-    """Creates \"copies\" of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
+def splitDataset(datasetPath) -> None:
+    """
+    Creates copies of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
     The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
-    each of the unlabeled and labeled subsets.
+    copying the images.
 
     Args:
         datasetPath (str): a path pointing to where the dataset is
     """
     
     datasetPath     = os.path.join(os.getcwd(), datasetPath)
-    labeledSubset   = f"{datasetPath}-labeled"
-    unlabeledSubset = f"{datasetPath}-unlabeled"
 
-    for split in [labeledSubset, unlabeledSubset]:
-        # Creates [labeledSubset, unlabeledSubset]/phoenix-2014-multisigner
-        os.makedirs(os.path.join(split, "phoenix-2014-multisigner"))
-        print(f"Created {os.path.join(split, 'phoenix-2014-multisigner')}")
+    copyDataset(datasetPath, "labeled")
+    copyDataset(datasetPath, "unlabeled")
 
-
-        # Creates symlinks {datasetPath}/phoenix-2014-multisigner/[evaluation, features, models] -> [labeledSubset, unlabeledSubset]/phoenix-2014-multisigner/[evaluation, features, models]
-        for subfolder in ["evaluation", "features", "models"]:
-            originalMultisignerPath = os.path.join(datasetPath, f"phoenix-2014-multisigner/{subfolder}")
-            newMultisignerPath      = os.path.join(split, f"phoenix-2014-multisigner/{subfolder}")
-            os.symlink(originalMultisignerPath, newMultisignerPath)
-            print(f"Created symlink {originalMultisignerPath} -> {newMultisignerPath}")
-
-
-        # Creates folder [labeledSubset, unlabeledSubset]/phoenix-2014-multisigner/annotations/manual
-        os.makedirs(os.path.join(split, "phoenix-2014-multisigner/annotations/manual"))
-        print(f"Created {os.path.join(split, 'phoenix-2014-multisigner/annotations/manual')}", end="\n\n")
-
-
+    # Save where the original annotation files are
     trainAnnotation = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
     testAnnotation  = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv")
     devAnnotation   = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv")
 
-    # Original training annotation goes to the unlabeled subset as the 'test' file. It goes in as the test file because the test file is used for ]
+    # Save the path for the labeled and unlabeled folders
+    labeledSubset   = f"{datasetPath}-labeled"
+    unlabeledSubset = f"{datasetPath}-unlabeled"
+
+    # The original training annotation goes to the unlabeled subset as the 'test' file. It goes in as the test file because the test file is used for
     # running inference, and we want to run inference on the 'unlabeled' data points. Ideally it should be called something else because this gives the impression
     # that it is the original test annotation, and it might get confusing. Just keep in mind that this is our simulated unlabeled data pool, and it is only called 
     # test.corpus.csv because I don't want to change the code of SlowFastSign too much.
@@ -209,9 +207,48 @@ def splitDataset(datasetPath):
     shutil.copy(devAnnotation,  os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"))
 
 
+def copyDataset(datasetPath, newDatasetName) -> None:
+    """
+    Originally meant as a part of the splitDataset function, but became more modular to allow creating copies of everything. 
+    Now, you just pass a name and it will create a copy of the original with that name.
+
+    The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
+    copying the images. 
+    
+    The main difference from just using cp -r is that cp -r would make a copy of everything, and this function smartly uses symlinks in larger folders
+    with images to avoid making unecessary copies.
+
+    Args:
+        datasetPath (str): a path pointing to where the dataset is
+        newDatasetName (str): a name for the copy that's going to be created. It will be saved in the same folder that datasetPath is.
+    """
+
+    datasetPath    = os.path.join(os.getcwd(), datasetPath)
+    newDatasetPath = f"{datasetPath}-{newDatasetName}"
+
+    # Creates {newDatasetPath}/phoenix-2014-multisigner
+    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner"))
+    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner')}")
+
+
+    # Creates symlinks {datasetPath}/phoenix-2014-multisigner/[evaluation, features, models] -> {newDatasetPath}/phoenix-2014-multisigner/[evaluation, features, models]
+    for subfolder in ["evaluation", "features", "models"]:
+        originalMultisignerPath = os.path.join(datasetPath, f"phoenix-2014-multisigner/{subfolder}")
+        newMultisignerPath      = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/{subfolder}")
+        os.symlink(originalMultisignerPath, newMultisignerPath)
+        logging.info(f"Created symlink {originalMultisignerPath} -> {newMultisignerPath}")
+
+
+    # Creates folder {newDatasetPath}/phoenix-2014-multisigner/annotations/manual
+    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner/annotations/manual"))
+    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner/annotations/manual')}")
+
+
+
 if __name__ == '__main__':
     args = make_parser().parse_args()
     #validateParams(args)
 
     #splitDataset(args.dataset_path)
-    labelDataPoints(args.dataset_path, 10, None, False)
+    #labelDataPoints(args.dataset_path, 10, None, False)
+    trainModel(args.dataset_path)
