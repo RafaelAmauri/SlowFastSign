@@ -21,7 +21,7 @@ import os
 from argparse import ArgumentParser
 
 logging.basicConfig(
-    filename='activelearning.log',
+    filename='./activelearning.log',
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -207,7 +207,7 @@ def splitDataset(datasetPath) -> None:
     shutil.copy(devAnnotation,  os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"))
 
 
-def copyDataset(datasetPath, newDatasetName) -> None:
+def copyDataset(datasetPath, newDatasetPath) -> None:
     """
     Originally meant as a part of the splitDataset function, but became more modular to allow creating copies of everything. 
     Now, you just pass a name and it will create a copy of the original with that name.
@@ -220,11 +220,10 @@ def copyDataset(datasetPath, newDatasetName) -> None:
 
     Args:
         datasetPath (str): a path pointing to where the dataset is
-        newDatasetName (str): a name for the copy that's going to be created. It will be saved in the same folder that datasetPath is.
+        newDatasetPath (str): Where the copy is going to be created
     """
 
     datasetPath    = os.path.join(os.getcwd(), datasetPath)
-    newDatasetPath = f"{datasetPath}-{newDatasetName}"
 
     # Creates {newDatasetPath}/phoenix-2014-multisigner
     os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner"))
@@ -249,6 +248,11 @@ if __name__ == '__main__':
     args = make_parser().parse_args()
     #validateParams(args)
 
+    for i in [10, 20, 30]:
+        for j in [1]:
+            copyDataset(args.dataset_path, f"./dataset/phoenix{i}-run{j}")
+
     #splitDataset(args.dataset_path)
     #labelDataPoints(args.dataset_path, 10, None, False)
-    trainModel(args.dataset_path)
+    
+    #trainModel(args.dataset_path)
