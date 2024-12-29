@@ -207,7 +207,7 @@ def splitDataset(datasetPath) -> None:
     shutil.copy(devAnnotation,  os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"))
 
 
-def copyDataset(datasetPath, newDatasetPath) -> None:
+def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
     """
     Originally meant as a part of the splitDataset function, but became more modular to allow creating copies of everything. 
     Now, you just pass a name and it will create a copy of the original with that name.
@@ -221,6 +221,9 @@ def copyDataset(datasetPath, newDatasetPath) -> None:
     Args:
         datasetPath (str): a path pointing to where the dataset is
         newDatasetPath (str): Where the copy is going to be created
+        copyAnnotations (bool): Whether to copy the original annotation files to the new directory as well. Usually not recommended because
+                                it might mess things up when splitDataset() tries to set up the labeled and unlabeled pools. But if what
+                                you want is simply to make a perfect copy of datasetPath, then you can enable it without problems!
     """
 
     datasetPath    = os.path.join(os.getcwd(), datasetPath)
@@ -242,6 +245,13 @@ def copyDataset(datasetPath, newDatasetPath) -> None:
     os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner/annotations/manual"))
     logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner/annotations/manual')}")
 
+    # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv
+    if copyAnnotations:
+        for split in ["dev", "test"]:
+            originalAnnotationPath   = os.path.join(datasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
+            newDatasetAnnotationPath = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
+            
+            shutil.copy(originalAnnotationPath, newDatasetAnnotationPath)
 
 
 if __name__ == '__main__':
@@ -250,7 +260,7 @@ if __name__ == '__main__':
 
     for i in [10, 20, 30]:
         for j in [1]:
-            copyDataset(args.dataset_path, f"./dataset/phoenix{i}-run{j}")
+            copyDataset(args.dataset_path, f"./dataset/phoenix{i}-run{j}", True)
 
     #splitDataset(args.dataset_path)
     #labelDataPoints(args.dataset_path, 10, None, False)
