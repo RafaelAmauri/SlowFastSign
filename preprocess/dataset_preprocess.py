@@ -15,7 +15,9 @@ def csv2dict(anno_path, dataset_type):
     inputs_list = pandas.read_csv(anno_path)
     if dataset_type == 'train':
         broken_data = [2390]
-        inputs_list.drop(broken_data, inplace=True)
+        for i in broken_data:
+            if i in inputs_list:
+                inputs_list.drop(broken_data, inplace=True)
     inputs_list = (inputs_list.to_dict()['id|folder|signer|annotation'].values())
     info_dict = dict()
     info_dict['prefix'] = anno_path.rsplit("/", 3)[0] + "/features/fullFrame-210x260px"
@@ -101,6 +103,8 @@ if __name__ == '__main__':
                         help='resize image')
     parser.add_argument('--multiprocessing', '-m', action='store_true',
                         help='whether adopts multiprocessing to accelate the preprocess')
+    parser.add_argument('--overwrite-gloss-dict', action='store_true',
+                        help="overwrites the gloss dict file")
 
     args = parser.parse_args()
     mode = ["dev", "test", "train"]
@@ -129,4 +133,6 @@ if __name__ == '__main__':
     for idx, (key, value) in enumerate(sign_dict):
         save_dict[key] = [idx + 1, value]
     
-    # np.save(f"./{args.dataset}/gloss_dict.npy", save_dict)
+    if args.overwrite_gloss_dict:
+        print("Saving gloss dict...")
+        np.save(f"./{args.dataset}/gloss_dict.npy", save_dict)
