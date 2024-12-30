@@ -15,10 +15,11 @@
 
 import logging
 import random
-import shutil
 import os
 
-from argparse import ArgumentParser
+from active_learning_modules.parser import makeParser, validateParams
+from active_learning_modules.dataset_utils import copyDataset, splitDataset
+
 
 logging.basicConfig(
     filename='./activelearning.log',
@@ -27,7 +28,7 @@ logging.basicConfig(
 )
 
 
-def labelDataPoints(datasetPath, nLabelings, selectedSamples=None, isFirstLabelingLoop=False):
+def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nLabelings: int, selectedSamples=None, isFirstLabelingLoop=False):
     """Moves the selected data points from the unlabeled pool to the labeled pool. 
 
     Since we already have all the datapoints and this is a simulation, 
@@ -38,53 +39,38 @@ def labelDataPoints(datasetPath, nLabelings, selectedSamples=None, isFirstLabeli
     wants to learn from, and this function here is responsible for moving them to the labeled pool, so the next learning round incorporates them.
 
     Args:
-        datasetPath (str): The path to the dataset
+        labeledSubsetPath         (str): The path to the labeled subset
+        unlabeledSubsetPath       (str): The path to the unlabeled subset
         nLabelingsRandomSelection (int): How many data samples should be labeled randomly. Only used if selectedSamples=None.
-        selectedSamples (list): The names of the samples that were selected to be labeled.
-        isFirstLabelingLoop (bool): Whether or not it is the first labeling loop. This will create a new labeled pool file!
+        selectedSamples           (list): The names of the samples that were selected to be labeled.
+        isFirstLabelingLoop       (bool): Whether or not it is the first labeling loop. This will create a new labeled pool file!
     """
-    datasetPath     = os.path.join(os.getcwd(), datasetPath)
-    labeledSubset   = f"{datasetPath}-labeled"
-    unlabeledSubset = f"{datasetPath}-unlabeled"
 
-    labeledPool   = os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
-    unlabeledPool = os.path.join(unlabeledSubset, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv")
+    labeledPool   = os.path.join(labeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
+    unlabeledPool = os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv")
 
     # Get everything in the unlabeled pool
     with open(unlabeledPool, "r") as f:
         # Isolate the header
-        dataPoints  = f.readlines()
-        header      = dataPoints[0]
-        del dataPoints[0]
+        unlabeledPoolData  = f.readlines()
+        header             = unlabeledPoolData[0]
+        del unlabeledPoolData[0]
 
-    
+    #TODO Finish this!
     # If we're on the first labeling loop, this means that our labeled pool is empty and we have to create it!
     # To do this, first create the file and add the header to it.
     if isFirstLabelingLoop:
         with open(labeledPool, "w") as f:
             f.writelines(header) # Write the header because since this is the initial labeling, the labeledPool file is guaranteed to be empty!
-    
 
-    # Now, if there are no selected samples, it can mean two things:
-    #   * Either we are on the very first labeling loop and we have to create our labeled pool. This first labeled pool is created
-    # by randomly selecting samples from the unlabeled pool and adding them to it.
+            # The operation for the first labeling loop is the following: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
+            random.shuffle(unlabeledPoolData)
 
-    #   * Or we are testing the random sampling selection strategy.
-
-    # Either way, the operation for both cases is the same: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
-    if selectedSamples is None:
-        random.shuffle(dataPoints)
-
-        labeledInstances   = dataPoints[0 : nLabelings]
-        unlabeledInstances = dataPoints[nLabelings : ]
-
-
-    # On the other hand, if we know what samples have been selected to be labeled, we move them from the unlabeled pool to the labeled pool.
+            newlyLabeledInstances = unlabeledPoolData[0 : nLabelings]
+            unlabeledInstances    = unlabeledPoolData[nLabelings : ]
     else:
-        # TODO FINISH THIS
-        labeledInstances   = dataPoints[0 : nLabelings]
-        unlabeledInstances = dataPoints[nLabelings : ]
-
+        newlyLabeledInstances = selectedSamples
+        unlabeledInstances    = unlabeledPoolData - selectedSamples
 
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
     # instead of figuring out what lines should be kept in or removed one by one
@@ -94,175 +80,21 @@ def labelDataPoints(datasetPath, nLabelings, selectedSamples=None, isFirstLabeli
 
     # Next, we append the selected samples to the labeledPool file and we're done!
     with open(labeledPool, "a") as f:
-        f.writelines(labeledInstances)
-
-
-
-def make_parser():
-    """Creates a parser for the program parameters
-
-    Returns:
-        parser: an ArgumentParser object containing the program parameters
-    """
-    parser = ArgumentParser(description="Define the program parameters")
-
-    parser.add_argument('-d','--dataset-path', type=str, required=True, 
-                        help='The location of the dataset.')
-
-    parser.add_argument('-p', '--labeling-percentage', type=float, required=True,
-                        help="The percentage of the dataset that will go to the labeled subset when splitting.")
-
-    parser.add_argument('-m', '--mode', type=str, required=True, choices=["random", "active"],
-                        help="The if active, uses the new architecture for active learning. If random, uses random sampling.")
-
-    return parser
-
-
-
-def validateParams(args):
-    """validates if the options passed on to the parser are valid
-
-    Args:
-        args (an argparse.Namespace object): contains the parameters in a easy to handle object
-
-    Raises:
-        ValueError: _description_
-        FileExistsError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        ValueError: _description_
-        FileExistsError: _description_
-        NotImplementedError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        FileExistsError: _description_
-        FileExistsError: _description_
-        ValueError: _description_
-    """
-    if args.labeling_percentage <= 0:
-        raise ValueError("-p must be greater than 0.")
-
-    elif args.labeling_percentage >= 1:
-        raise ValueError("-p must be lesser than 1.")
-
-    if not os.path.exists(args.dataset_path):
-        raise FileNotFoundError("-d points to a path that does not exist.")
-    
-    pathForChecking = args.dataset_path
-    for subfolder in ["phoenix-2014-multisigner", "annotations", "manual"]:
-        pathForChecking = os.path.join(pathForChecking, subfolder)
-        if not os.path.exists(pathForChecking):
-            raise FileNotFoundError(f"{pathForChecking} does not exist! Make sure the structure inside the dataset folder matches the one in Phoenix2014!")
-
-    if os.path.exists(f"{args.dataset_path}-labeled"):
-        raise FileExistsError(f"{args.d}-labeled already exists! Ideally this folder should be created by this program at a later point, meaning \
-                              this is probably not your first timerunning this program. For safety reasons, this program will not continue and I \
-                              ask you to deal with this before running the program again :)")
-
-    if os.path.exists(f"{args.dataset_path}-unlabeled"):
-        raise FileExistsError(f"{args.dataset_path}-unlabeled already exists! Ideally this folder should be created by this program at a later point, meaning \
-                              this is probably not your first timerunning this program. For safety reasons, this program will not continue and I \
-                              ask you to deal with this before running the program again :)")
-
-
-    logging.info(f"Creating {args.dataset_path}-labeled and {args.dataset_path}-unlabeled now!")
-    os.makedirs(f"{args.dataset_path}-labeled")
-    os.makedirs(f"{args.dataset_path}-unlabeled")
-
-
-def splitDataset(datasetPath) -> None:
-    """
-    Creates copies of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
-    The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
-    copying the images.
-
-    Args:
-        datasetPath (str): a path pointing to where the dataset is
-    """
-    
-    datasetPath     = os.path.join(os.getcwd(), datasetPath)
-
-    copyDataset(datasetPath, "labeled")
-    copyDataset(datasetPath, "unlabeled")
-
-    # Save where the original annotation files are
-    trainAnnotation = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
-    testAnnotation  = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv")
-    devAnnotation   = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv")
-
-    # Save the path for the labeled and unlabeled folders
-    labeledSubset   = f"{datasetPath}-labeled"
-    unlabeledSubset = f"{datasetPath}-unlabeled"
-
-    # The original training annotation goes to the unlabeled subset as the 'test' file. It goes in as the test file because the test file is used for
-    # running inference, and we want to run inference on the 'unlabeled' data points. Ideally it should be called something else because this gives the impression
-    # that it is the original test annotation, and it might get confusing. Just keep in mind that this is our simulated unlabeled data pool, and it is only called 
-    # test.corpus.csv because I don't want to change the code of SlowFastSign too much.
-    shutil.copy(trainAnnotation, os.path.join(unlabeledSubset, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv"))
-
-    # Original test and dev annotations go to the labeled set as themselves. We will be testing the performance on them, so they have to go in unmodified.
-    shutil.copy(testAnnotation, os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv"))
-    shutil.copy(devAnnotation,  os.path.join(labeledSubset, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"))
-
-
-def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
-    """
-    Originally meant as a part of the splitDataset function, but became more modular to allow creating copies of everything. 
-    Now, you just pass a name and it will create a copy of the original with that name.
-
-    The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
-    copying the images. 
-    
-    The main difference from just using cp -r is that cp -r would make a copy of everything, and this function smartly uses symlinks in larger folders
-    with images to avoid making unecessary copies.
-
-    Args:
-        datasetPath (str): a path pointing to where the dataset is
-        newDatasetPath (str): Where the copy is going to be created
-        copyAnnotations (bool): Whether to copy the original annotation files to the new directory as well. Usually not recommended because
-                                it might mess things up when splitDataset() tries to set up the labeled and unlabeled pools. But if what
-                                you want is simply to make a perfect copy of datasetPath, then you can enable it without problems!
-    """
-
-    datasetPath    = os.path.join(os.getcwd(), datasetPath)
-
-    # Creates {newDatasetPath}/phoenix-2014-multisigner
-    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner"))
-    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner')}")
-
-
-    # Creates symlinks {datasetPath}/phoenix-2014-multisigner/[evaluation, features, models] -> {newDatasetPath}/phoenix-2014-multisigner/[evaluation, features, models]
-    for subfolder in ["evaluation", "features", "models"]:
-        originalMultisignerPath = os.path.join(datasetPath, f"phoenix-2014-multisigner/{subfolder}")
-        newMultisignerPath      = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/{subfolder}")
-        os.symlink(originalMultisignerPath, newMultisignerPath)
-        logging.info(f"Created symlink {originalMultisignerPath} -> {newMultisignerPath}")
-
-
-    # Creates folder {newDatasetPath}/phoenix-2014-multisigner/annotations/manual
-    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner/annotations/manual"))
-    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner/annotations/manual')}")
-
-    # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv
-    if copyAnnotations:
-        for split in ["dev", "test"]:
-            originalAnnotationPath   = os.path.join(datasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
-            newDatasetAnnotationPath = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
-            
-            shutil.copy(originalAnnotationPath, newDatasetAnnotationPath)
+        f.writelines(newlyLabeledInstances)
 
 
 if __name__ == '__main__':
-    args = make_parser().parse_args()
-    #validateParams(args)
+    args = makeParser().parse_args()
+    validateParams(args)
 
-    for i in [10, 20, 30]:
-        for j in [1]:
-            copyDataset(args.dataset_path, f"./dataset/phoenix{i}-run{j}", True)
+    
+    datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
+    datasetName          =  args.dataset_path.split("/")[-1]
 
-    #splitDataset(args.dataset_path)
-    #labelDataPoints(args.dataset_path, 10, None, False)
+    # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]
+    labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path)
+
+    # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
+    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, 10, selectedSamples=None, isFirstLabelingLoop=True)
     
     #trainModel(args.dataset_path)
