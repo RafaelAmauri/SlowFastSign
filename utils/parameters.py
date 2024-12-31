@@ -162,8 +162,15 @@ def get_parser():
         type=int,
         default=80,
         help='stop training in which epoch')
-    return parser
 
+    ## Active Learning Parameters
+    parser.add_argument(
+        ('--enable-sample-selection'),
+        action='store_true',
+        default=False,
+        help="If the model is being used for active learning and it is selecting samples from the unlabeled pool"
+    )
+    return parser
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):

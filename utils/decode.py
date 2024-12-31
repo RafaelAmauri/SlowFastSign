@@ -66,7 +66,7 @@ class Decode(object):
             ret_list.append(decoded_result)
             probabilities.append(class_probabilities)
 
-            print(f"\nBEAMMMTODO = {beam_scores[batch_idx]}\nBEAMMM 0 = {beam_scores[batch_idx][0]}\nBEAMMM -1 = {beam_scores[batch_idx][-1]}")
+            #print(f"\nBEAMMMTODO = {beam_scores[batch_idx]}\nBEAMMM 0 = {beam_scores[batch_idx][0]}\nBEAMMM -1 = {beam_scores[batch_idx][-1]}")
 
             # Extract the beam score for the chosen sequence (the first beam)
             beam_score = beam_scores[batch_idx][0].item()  # The score for the first beam in the batch
