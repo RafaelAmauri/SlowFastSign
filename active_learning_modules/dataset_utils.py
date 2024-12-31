@@ -37,15 +37,43 @@ def splitDataset(datasetPath: str) -> tuple[str, str]:
     devAnnotationPath   = os.path.join(datasetPath, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv")
 
 
-    # The original training annotation goes to the unlabeled subset as the 'test' file. It goes in as the test file because the test file is used for
+    # The original train.corpus.csv annotation goes to the unlabeled subset as the test.corpus.csv file. It goes in as the test file because the test file is used for
     # running inference, and we want to run inference on the 'unlabeled' data points. Ideally it should be called something else because this gives the impression
     # that it is the original test annotation, and it might get confusing. Just keep in mind that this is our simulated unlabeled data pool, and it is only called 
     # test.corpus.csv because I don't want to change the code of SlowFastSign too much.
     shutil.copy(trainAnnotationPath, os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv"))
 
+    # Since we now have a train.corpus.csv file that was 'swapped' for the test.corpus.csv file inside the unlabeled folder, we now have to also swap the
+    # corresponding train and test folders inside the unlabeledSubsetPath/phoenix-2014-multisigner/features folder to reflect this change!
+
+    # Now,    unlabeledSubsetPath/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/train
+    # becomes unlabeledSubsetPath/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/test
+
+    # And unlabeledSubsetPath/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/test
+    # becomes unlabeledSubsetPath/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/train
+    unlabeledSubsetFeaturesFolder = os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/features")
+    for fullFrameFolderCategory in ["fullFrame-210x260px", "fullFrame-256x256px"]:
+        trainFullFrameCategoryFolder = os.path.join(unlabeledSubsetFeaturesFolder, f"{fullFrameFolderCategory}/train")
+        testFullFrameCategoryFolder  = os.path.join(unlabeledSubsetFeaturesFolder, f"{fullFrameFolderCategory}/test")
+        
+        shutil.move(trainFullFrameCategoryFolder, "./tmp")
+        shutil.move(testFullFrameCategoryFolder, trainFullFrameCategoryFolder)
+        shutil.move("./tmp", testFullFrameCategoryFolder)
+
+    # The SlowFastSign script requires a test, dev and train annotation file in every dataset, even if they are empty. Right now we only have a test file in the unlabeled set, so now we 
+    # create empty dev and train files.
+    header = "id|folder|signer|annotation"
+    with open(os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"), "w") as outfile:
+        outfile.writelines(header)
+    
+    with open(os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv"), "w") as outfile:
+        outfile.writelines(header)
+
+
     # Original test and dev annotations go to the labeled set as themselves. We will be testing the performance on them, so they have to go in unmodified.
     shutil.copy(testAnnotationPath, os.path.join(labeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv"))
     shutil.copy(devAnnotationPath,  os.path.join(labeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/dev.corpus.csv"))
+
 
     return labeledSubsetPath, unlabeledSubsetPath
 
@@ -69,22 +97,31 @@ def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
                                 you want is simply to make a perfect copy of datasetPath, then you can enable it without problems!
     """
 
-    # Creates {newDatasetPath}/phoenix-2014-multisigner
-    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner"))
-    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner')}")
+    # These will all be created by the script automatically. After they're created, we will create symlinks to the relevant files and folders.
+    internalFolders = [
+                        "phoenix-2014-multisigner/annotations/manual",
+                        "phoenix-2014-multisigner/evaluation",
+                        "phoenix-2014-multisigner/features/fullFrame-210x260px",
+                        "phoenix-2014-multisigner/features/fullFrame-256x256px"
+                        ]
 
 
-    # Creates symlinks {datasetPath}/phoenix-2014-multisigner/[evaluation, features, models] -> {newDatasetPath}/phoenix-2014-multisigner/[evaluation, features, models]
-    for subfolder in ["evaluation", "features", "models"]:
-        originalMultisignerPath = os.path.join(datasetPath, f"phoenix-2014-multisigner/{subfolder}")
-        newMultisignerPath      = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/{subfolder}")
-        os.symlink(originalMultisignerPath, newMultisignerPath)
-        logging.info(f"Created symlink {originalMultisignerPath} -> {newMultisignerPath}")
+    for folder in internalFolders:
+        os.makedirs(os.path.join(newDatasetPath, folder))
 
+    
+    # Creates symlinks {datasetPath}/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/[train, test, dev] -> 
+    # -> {newDatasetPath}/phoenix-2014-multisigner/features/[fullFrame-210x260px, fullFrame-256x256px]/[train, test, dev]
+    for fullFrameFolderCategory in ["fullFrame-210x260px", "fullFrame-256x256px"]:
+        originalFullFrameFolder = os.path.join(datasetPath, f"phoenix-2014-multisigner/features/{fullFrameFolderCategory}")
+        newFullFrameFolder      = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/features/{fullFrameFolderCategory}")
 
-    # Creates folder {newDatasetPath}/phoenix-2014-multisigner/annotations/manual
-    os.makedirs(os.path.join(newDatasetPath, "phoenix-2014-multisigner/annotations/manual"))
-    logging.info(f"Created {os.path.join(newDatasetPath, 'phoenix-2014-multisigner/annotations/manual')}")
+        for subset in ["train", "test", "dev"]:
+            originalSubsetPath = os.path.join(originalFullFrameFolder, subset)
+            newSubsetPath      = os.path.join(newFullFrameFolder, subset)
+                
+            os.symlink(originalSubsetPath, newSubsetPath)
+
 
     # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv
     if copyAnnotations:
