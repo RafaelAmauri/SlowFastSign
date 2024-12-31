@@ -16,6 +16,7 @@
 import subprocess
 import logging
 import random
+import shutil
 import yaml
 import os
 
@@ -28,6 +29,26 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+
+def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
+    """
+    Runs the preprocess scrip to generatee the .stm groundtruth files, the gloss_dict.npy file, the [train, test, dev]_info.npy... Pretty much everything that we need to work with.
+    
+    It's important to note that, while the preprocessing routine in SlowFastSign generates the groundtruth for the train, test and dev files,
+    they are not saved in the correct folder automatically. This makes it necessary to move the groundtruth files
+    to their correct folder. This is what the second part of this function does
+
+    Args:
+        datasetPath (srt): The folder containing your data. It's the one with the phoenix-2014-multisigner/ folder.
+        datasetName (str): The name of the dataset. Could be anything theoretically, but needs to match the one in the .yaml config file for the rest of the program to work
+    """
+    subprocess.run(f"cd preprocess; python3 dataset_preprocess.py --dataset {datasetName} --dataset-root {datasetPath}/phoenix-2014-multisigner", shell=True, check=True)
+
+    for subset in ["train", "test", "dev"]:
+        currentSubsetGroundtruthPath = os.path.join(f"./preprocess/{datasetName}", f"{datasetName}-groundtruth-{subset}.stm")
+        shutil.copy(currentSubsetGroundtruthPath, "./evaluation/slr_eval/")
+    
 
 
 def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesToLabel: int, selectedSamples=None, isFirstLabelingLoop=False):
@@ -88,10 +109,11 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
 
 
 if __name__ == '__main__':
+    
     args = makeParser().parse_args()
-    #validateParams(args)
+    validateParams(args)
 
-    '''
+    
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
     datasetName          =  args.dataset_path.split("/")[-1]
 
@@ -100,14 +122,14 @@ if __name__ == '__main__':
     
     labeledSubsetName   = labeledSubsetPath.split("/")[-1]
     unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
-
+    
     # Create config files for the unlabeled and labeled datasets
     for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
         config = dict(  
                         dataset_root      = f"{subsetPath}/phoenix-2014-multisigner",
                         dict_path         = './preprocess/phoenix2014/gloss_dict.npy',
                         evaluation_dir    = './evaluation/slr_eval',
-                        evaluation_prefix = 'phoenix2014-groundtruth'
+                        evaluation_prefix =f"{subsetName}-groundtruth"
                         )
         
         with open(f"./configs/{subsetName}.yaml", "w") as outfile:
@@ -117,19 +139,15 @@ if __name__ == '__main__':
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=None, isFirstLabelingLoop=True)
     
     # Run preprocess routine for labeled subset
-    subprocess.run(f"cd preprocess; python3 dataset_preprocess.py --dataset {labeledSubsetName} --dataset-root {labeledSubsetPath}/phoenix-2014-multisigner", shell=True, check=True)
+    preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
 
     # Train on labeled subset
     subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
-
-    '''
-    # Load the weights of the newly trained model, run inference on the unlabeled set and get the args.n_labels most significant samples
-
-    unlabeledSubsetName = "phoenix2014-30percent-unlabeled"
-    unlabeledSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-30percent-unlabeled"
-
-    originalSubsetName  = "phoenix2014-30percent"
-    originalSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-30percent"
-
+    
+    # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset
+    
     # Run preprocess routine for the unlabeled subset
-    subprocess.run(f"cd preprocess; python3 dataset_preprocess.py --overwrite-gloss-dict --dataset {unlabeledSubsetName} --dataset-root {unlabeledSubsetPath}/phoenix-2014-multisigner", shell=True, check=True)
+    preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
+
+    # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
+    subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/_best_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
