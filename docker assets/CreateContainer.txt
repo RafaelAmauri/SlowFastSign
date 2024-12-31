@@ -1,0 +1,3 @@
+To create the docker container, run:
+
+docker run --shm-size=32g --gpus=all --name=slowfastsign 
