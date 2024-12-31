@@ -1,15 +1,18 @@
 feeder: dataset.dataloader_video.BaseFeeder
 phase: train
 dataset: phoenix2014
-num_epoch: 80
+#num_epoch: 80
+num_epoch: 10
 work_dir: ./work_dir/baseline_res18/
-batch_size: 2
+#batch_size: 2
+batch_size: 1
 random_seed: 0
-test_batch_size: 2
+#test_batch_size: 2
+test_batch_size: 1
 num_worker: 4
 device: 0
 log_interval: 10000
-eval_interval: 1
+eval_interval: 10
 save_interval: 5
 # python in default
 evaluate_tool: python
