@@ -224,7 +224,9 @@ class Processor():
         if self.arg.dataset == 'CSL':
             dataset_list = zip(["train", "dev"], [True, False])
         elif 'phoenix' in self.arg.dataset:
-            dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False]) 
+            dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
+            if self.arg.enable_sample_selection:
+                dataset_list = zip(["test"], [False]) 
         elif self.arg.dataset == 'CSL-Daily':
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
         for idx, (mode, train_flag) in enumerate(dataset_list):
