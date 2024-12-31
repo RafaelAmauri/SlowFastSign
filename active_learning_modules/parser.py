@@ -21,8 +21,8 @@ def makeParser():
     parser.add_argument('-d','--dataset-path', type=str, required=True, 
                         help='The location of the dataset.')
 
-    parser.add_argument('-p', '--labeling-percentage', type=float, required=True,
-                        help="The percentage of the dataset that will go to the labeled subset when splitting.")
+    parser.add_argument('-l', '--n-labels', type=int, required=True,
+                        help="The number of unlabeled samples that should be labeled each time the labeling step occurs.")
 
     parser.add_argument('-m', '--mode', type=str, required=True, choices=["random", "active"],
                         help="The if active, uses the new architecture for active learning. If random, uses random sampling.")
@@ -52,11 +52,8 @@ def validateParams(args) -> None:
         FileExistsError: _description_
         ValueError: _description_
     """
-    if args.labeling_percentage <= 0:
-        raise ValueError("-p must be greater than 0.")
-
-    elif args.labeling_percentage >= 1:
-        raise ValueError("-p must be lesser than 1.")
+    if args.n_labels <= 0:
+        raise ValueError("Number of labels must be greater than 0.")
 
     if not os.path.exists(args.dataset_path):
         raise FileNotFoundError("-d points to a path that does not exist.")
