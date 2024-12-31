@@ -20,9 +20,11 @@ import shutil
 import yaml
 import os
 
-from active_learning_modules.parser import makeParser, validateParams
-from active_learning_modules.dataset_utils import copyDataset, splitDataset
+from transformers import XCLIPProcessor, XCLIPModel
 
+from active_learning_modules.dataset_utils import splitDataset
+from active_learning_modules.parser import makeParser, validateParams
+from active_learning_modules.xclip_utils import parsePredictionsFile
 
 logging.basicConfig(
     filename='./activelearning.log',
@@ -94,7 +96,7 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
         unlabeledInstances    = unlabeledPoolData[nSamplesToLabel : ]
     #TODO Finish this
     else:
-        newlyLabeledInstances = selectedSamples
+        #for i in range(args.)
         unlabeledInstances    = unlabeledPoolData - selectedSamples
 
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
@@ -151,3 +153,21 @@ if __name__ == '__main__':
 
     # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
     subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/_best_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+
+
+    predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.stm")
+    modelName           = "microsoft/xclip-base-patch32-16-frames"
+
+    processor           = XCLIPProcessor.from_pretrained(modelName)
+    model               = XCLIPModel.from_pretrained(modelName)
+
+    # Inference to get similarity scores
+    model.eval()
+
+    videoPaths, glossPredictions = parsePredictionsFile(predictionsFilePath, unlabeledSubsetPath)
+
+    # Now we find out which are the most informative predictions made for the unlabeled set. 
+    mostInformativeSamples = findMostInformativeSamples(os.path.join("work_dir", unlabeledSubsetName), unlabeledSubsetPath)
+
+    raise Exception
+    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
