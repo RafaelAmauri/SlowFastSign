@@ -13,8 +13,10 @@
     # Voltar ao passo 1 e repetir até acabar as amostras
 
 
+import subprocess
 import logging
 import random
+import yaml
 import os
 
 from active_learning_modules.parser import makeParser, validateParams
@@ -28,7 +30,7 @@ logging.basicConfig(
 )
 
 
-def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nLabelings: int, selectedSamples=None, isFirstLabelingLoop=False):
+def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesToLabel: int, selectedSamples=None, isFirstLabelingLoop=False):
     """Moves the selected data points from the unlabeled pool to the labeled pool. 
 
     Since we already have all the datapoints and this is a simulation, 
@@ -41,7 +43,7 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nLabelings
     Args:
         labeledSubsetPath         (str): The path to the labeled subset
         unlabeledSubsetPath       (str): The path to the unlabeled subset
-        nLabelingsRandomSelection (int): How many data samples should be labeled randomly. Only used if selectedSamples=None.
+        nSamplesToLabel           (int): How many data samples should be moved to the labeled pool.
         selectedSamples           (list): The names of the samples that were selected to be labeled.
         isFirstLabelingLoop       (bool): Whether or not it is the first labeling loop. This will create a new labeled pool file!
     """
@@ -54,20 +56,22 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nLabelings
         # Isolate the header
         unlabeledPoolData  = f.readlines()
         header             = unlabeledPoolData[0]
+
         del unlabeledPoolData[0]
 
-    #TODO Finish this!
+
     # If we're on the first labeling loop, this means that our labeled pool is empty and we have to create it!
     # To do this, first create the file and add the header to it.
     if isFirstLabelingLoop:
         with open(labeledPool, "w") as f:
             f.writelines(header) # Write the header because since this is the initial labeling, the labeledPool file is guaranteed to be empty!
 
-            # The operation for the first labeling loop is the following: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
-            random.shuffle(unlabeledPoolData)
+        # The operation for the first labeling loop is the following: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
+        random.shuffle(unlabeledPoolData)
 
-            newlyLabeledInstances = unlabeledPoolData[0 : nLabelings]
-            unlabeledInstances    = unlabeledPoolData[nLabelings : ]
+        newlyLabeledInstances = unlabeledPoolData[0 : nSamplesToLabel]
+        unlabeledInstances    = unlabeledPoolData[nSamplesToLabel : ]
+    #TODO Finish this
     else:
         newlyLabeledInstances = selectedSamples
         unlabeledInstances    = unlabeledPoolData - selectedSamples
@@ -85,16 +89,47 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nLabelings
 
 if __name__ == '__main__':
     args = makeParser().parse_args()
-    validateParams(args)
+    #validateParams(args)
 
-    
+    '''
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
     datasetName          =  args.dataset_path.split("/")[-1]
 
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path)
+    
+    labeledSubsetName   = labeledSubsetPath.split("/")[-1]
+    unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
+
+    # Create config files for the unlabeled and labeled datasets
+    for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
+        config = dict(  
+                        dataset_root      = f"{subsetPath}/phoenix-2014-multisigner",
+                        dict_path         = './preprocess/phoenix2014/gloss_dict.npy',
+                        evaluation_dir    = './evaluation/slr_eval',
+                        evaluation_prefix = 'phoenix2014-groundtruth'
+                        )
+        
+        with open(f"./configs/{subsetName}.yaml", "w") as outfile:
+            yaml.dump(config, outfile)
 
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
-    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, 10, selectedSamples=None, isFirstLabelingLoop=True)
+    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=None, isFirstLabelingLoop=True)
     
-    #trainModel(args.dataset_path)
+    # Run preprocess routine for labeled subset
+    subprocess.run(f"cd preprocess; python3 dataset_preprocess.py --dataset {labeledSubsetName} --dataset-root {labeledSubsetPath}/phoenix-2014-multisigner", shell=True, check=True)
+
+    # Train on labeled subset
+    subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
+
+    '''
+    # Load the weights of the newly trained model, run inference on the unlabeled set and get the args.n_labels most significant samples
+
+    unlabeledSubsetName = "phoenix2014-30percent-unlabeled"
+    unlabeledSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-30percent-unlabeled"
+
+    originalSubsetName  = "phoenix2014-30percent"
+    originalSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-30percent"
+
+    # Run preprocess routine for the unlabeled subset
+    subprocess.run(f"cd preprocess; python3 dataset_preprocess.py --overwrite-gloss-dict --dataset {unlabeledSubsetName} --dataset-root {unlabeledSubsetPath}/phoenix-2014-multisigner", shell=True, check=True)
