@@ -17,6 +17,9 @@ import subprocess
 import logging
 import random
 import shutil
+import torch
+import torch.utils
+import torch.utils.data
 import yaml
 import os
 
@@ -24,7 +27,10 @@ from transformers import XCLIPProcessor, XCLIPModel
 
 from active_learning_modules.dataset_utils import splitDataset
 from active_learning_modules.parser import makeParser, validateParams
-from active_learning_modules.xclip_utils import parsePredictionsFile
+from active_learning_modules.xclip import trainXclip, xclipInference
+from active_learning_modules.xclip_utils import parsePredictionsFile, parseAnnotationFile
+from active_learning_modules.videoglossdataset import VideoGlossDataset, videoGlossDatasetCollateFn
+
 
 logging.basicConfig(
     filename='./activelearning.log',
@@ -143,31 +149,34 @@ if __name__ == '__main__':
     # Run preprocess routine for labeled subset
     preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
 
-    # Train on labeled subset
+    # Train gloss generator on labeled subset
     subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
     
-    # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset
+    # Train Xclip on the labeled set as well
+    modelName  = "microsoft/xclip-base-patch32-16-frames"
+    processor  = XCLIPProcessor.from_pretrained(modelName)
+    model      = XCLIPModel.from_pretrained(modelName)
+    labeledTrainVideoPaths, labeledTrainGloss = parseAnnotationFile(labeledSubsetPath, "train")
+    labeledTrainVideoGloss = VideoGlossDataset(labeledTrainVideoPaths, labeledTrainGloss, 16)
+    labeledTrainDataloader = torch.utils.data.DataLoader(labeledTrainVideoGloss, batch_size=8, shuffle=True, collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor))
     
+    processor = XCLIPProcessor.from_pretrained("fine_tuned_xclip_processor")
+    model     = XCLIPModel.from_pretrained("fine_tuned_xclip_model")
+
+    trainXclip(model, processor, 25, labeledTrainDataloader, "cuda")
+
+    # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
     # Run preprocess routine for the unlabeled subset
     preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
     # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-    subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/_best_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+    subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/dev_103.03_epoch0_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
 
-
-    predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.stm")
-    modelName           = "microsoft/xclip-base-patch32-16-frames"
-
-    processor           = XCLIPProcessor.from_pretrained(modelName)
-    model               = XCLIPModel.from_pretrained(modelName)
-
-    # Inference to get similarity scores
-    model.eval()
-
+    predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.ctm")
     videoPaths, glossPredictions = parsePredictionsFile(predictionsFilePath, unlabeledSubsetPath)
 
-    # Now we find out which are the most informative predictions made for the unlabeled set. 
-    mostInformativeSamples = findMostInformativeSamples(os.path.join("work_dir", unlabeledSubsetName), unlabeledSubsetPath)
+    # Now we find out which are the most informative predictions made for the unlabeled set.
+    mostInformativeSamples = xclipInference(model, processor, videoPaths, glossPredictions, f"./work_dir/{unlabeledSubsetName}", "cuda")
 
     raise Exception
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
