@@ -2,7 +2,7 @@ import torch
 
 from active_learning_modules.xclip_utils import getKeyFramesFromFolder
 
-class VideoGlossDataset(torch.utils.data.Dataset):
+class VideoGlossDataset(torch.utils.data.Dataset): # type: ignore
     def __init__(self, videoPaths, glosses, nFrames):
         """
         Args:
@@ -24,7 +24,7 @@ class VideoGlossDataset(torch.utils.data.Dataset):
         gloss      = self.glosses[idx]
         
         # Get keyframes from video
-        keyFrames  = getKeyFramesFromFolder(video_path, self.nFramesnFrames)
+        keyFrames  = getKeyFramesFromFolder(video_path, self.nFrames)
         
         return keyFrames, gloss
 

@@ -3,6 +3,33 @@ import numpy as np
 
 from PIL import Image
 
+
+def parseAnnotationFile(subsetPath: str, mode: str):
+
+    annotationFilePath = os.path.join(subsetPath, f"phoenix-2014-multisigner/annotations/manual/{mode}.corpus.csv")
+
+    with open(annotationFilePath, "r") as f:
+        lines  = f.readlines()
+        del lines[0]
+
+    videoPaths  = []
+    groundTruth = []
+    for line in lines:
+        line = line.split("|")
+
+        currentVideo         = line[0]
+        currentVideoFullPath = os.path.join(f"{subsetPath}/phoenix-2014-multisigner/features/fullFrame-256x256px/{mode}", f"{currentVideo}/1")
+        
+        currentGloss = line[-1]
+        currentGloss = currentGloss.rstrip("\n")
+        
+        videoPaths.append(currentVideoFullPath)
+        groundTruth.append(currentGloss)
+
+
+    return videoPaths, groundTruth
+
+
 def getKeyFramesFromFolder(path, nFrames):
     files = os.listdir(path)
     files.sort()
