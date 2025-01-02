@@ -50,7 +50,7 @@ def alignmentVideoGeneratedGloss(model, processor, glossesByFullVideoPath: dict,
         predictedLabel = possibleOptions[torch.argmax(probs)]
         predictionProbability = torch.max(probs)
         if predictedLabel == "person saying _ in sign language":
-            predictionProbability = torch.tensor(0, dtype=torch.int)
+            predictionProbability = predictionProbability
 
         predictionRanking.put((predictionProbability, vPath))
     
