@@ -165,19 +165,24 @@ if __name__ == '__main__':
         # subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
 
         # Prepare to train X-Clip on the labeled set
-        modelName  = "microsoft/xclip-base-patch32-16-frames"
+        modelName  = f"microsoft/xclip-base-patch32-{args.x_clip_n_frames}-frames"
         processor  = XCLIPProcessor.from_pretrained(modelName)
         model      = XCLIPModel.from_pretrained(modelName)
 
         labeledTrainGroundTruthByVideoPath = parseAnnotationFile(labeledSubsetPath, "train")
-        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, nFrames=16)
-        labeledTrainDataloader             = torch.utils.data.DataLoader(labeledTrainVideoGlossDataset, batch_size=6, shuffle=True, collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor))
+        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, nFrames=args.x_clip_n_frames)
+        labeledTrainDataloader             = torch.utils.data.DataLoader(labeledTrainVideoGlossDataset, 
+                                                                        batch_size=args.x_clip_batch_size, 
+                                                                        shuffle=True, 
+                                                                        collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor)
+                                                                        )
 
         trainXClip(model=model, 
-                   processor=processor, 
-                   nEpochs=3, 
+                   processor=processor,
+                   nEpochs=args.x_clip_epochs,
                    dataloader=labeledTrainDataloader, 
-                   device="cuda")
+                   device="cuda"
+                   )
 
 
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
