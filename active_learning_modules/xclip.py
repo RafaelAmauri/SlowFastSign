@@ -36,7 +36,7 @@ def alignmentVideoGeneratedGloss(model, processor, glossesByFullVideoPath: dict,
 
         # We give the model the chance to choose between the gloss that the other model generated or some random garbage.
         # If it chooses the random garbage with higher probability, it means that this could be a good candidate for labeling.
-        possibleOptions = [predictedGloss, "person saying _ in sign language"]
+        possibleOptions = [f"person saying {predictedGloss} in sign language", "person saying _ in sign language"]
 
         inputs = processor(text=possibleOptions, videos=keyFrames, return_tensors="pt", padding=True)
         inputs.to(device)
@@ -49,7 +49,7 @@ def alignmentVideoGeneratedGloss(model, processor, glossesByFullVideoPath: dict,
 
         predictedLabel = possibleOptions[torch.argmax(probs)]
         predictionProbability = torch.max(probs)
-        if predictedLabel == "_":
+        if predictedLabel == "person saying _ in sign language":
             predictionProbability = torch.tensor(0, dtype=torch.int)
 
         predictionRanking.put((predictionProbability, vPath))
@@ -69,7 +69,7 @@ def alignmentVideoGeneratedGloss(model, processor, glossesByFullVideoPath: dict,
     return generatedGlossAlignmentRanking
 
 
-def trainXClip(model, processor, nEpochs: int, dataloader, device: str):
+def trainXClip(model, processor, nEpochs: int, dataloader, saveFolder: str, device: str):
     """Trains an X-Clip (https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/xclip) Video-to-Text alignment model. 
 
     Args:
@@ -110,5 +110,5 @@ def trainXClip(model, processor, nEpochs: int, dataloader, device: str):
             optimizer.step()
             optimizer.zero_grad()
 
-    processor.save_pretrained("fine_tuned_xclip_processor")
-    model.save_pretrained("fine_tuned_xclip_model")
+    processor.save_pretrained(f"{saveFolder}/fine_tuned_xclip_processor")
+    model.save_pretrained(f"{saveFolder}/fine_tuned_xclip_model")

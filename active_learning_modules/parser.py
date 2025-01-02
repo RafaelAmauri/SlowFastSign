@@ -1,13 +1,5 @@
 from argparse import ArgumentParser
-import logging
 import os
-
-
-logging.basicConfig(
-    filename='./activelearning.log',
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
 
 
 def makeParser():
@@ -31,13 +23,13 @@ def makeParser():
                         It's important to note that the total number of labeled samples will be --n-labels * --n-runs. \
                         Defaults to 1.")
     
-    parser.add_argument('-f', '--x-clip-n-frames', type=int, choices=[8, 16],
+    parser.add_argument('-f', '--x-clip-n-frames', type=int, choices=[8, 16], required=True,
                         help="How many frames the X-Clip model should use.")
 
-    parser.add_argument('-e', '--x-clip-epochs', type=int,
+    parser.add_argument('-e', '--x-clip-epochs', type=int, required=True,
                         help="For how many epochs the X-Clip model should train for.")
 
-    parser.add_argument('-b', '--x-clip-batch-size', type=int,
+    parser.add_argument('-b', '--x-clip-batch-size', type=int, required=True,
                         help="The batch size for the X-Clip model")
     
 

@@ -13,11 +13,6 @@ from multiprocessing import Pool
 
 def csv2dict(anno_path, dataset_type):
     inputs_list = pandas.read_csv(anno_path)
-    if dataset_type == 'train':
-        broken_data = [2390]
-        for i in broken_data:
-            if i in inputs_list:
-                inputs_list.drop(broken_data, inplace=True)
     inputs_list = (inputs_list.to_dict()['id|folder|signer|annotation'].values())
     info_dict = dict()
     info_dict['prefix'] = anno_path.rsplit("/", 3)[0] + "/features/fullFrame-210x260px"

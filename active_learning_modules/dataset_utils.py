@@ -1,13 +1,5 @@
-import logging
 import shutil
 import os
-
-
-logging.basicConfig(
-    filename='./activelearning.log',
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
 
 
 def splitDataset(datasetPath: str, runId: int) -> tuple[str, str]:

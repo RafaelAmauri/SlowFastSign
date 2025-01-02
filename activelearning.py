@@ -34,7 +34,7 @@ from active_learning_modules.videoglossdataset import VideoGlossDataset, videoGl
 
 logging.basicConfig(
     filename='./activelearning.log',
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -113,7 +113,6 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
                 newlyLabeledData.append(unlabeledSample)
                 remainingUnlabeledData.remove(unlabeledSample)
 
-        print(newlyLabeledData)
 
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
     # instead of figuring out what lines should be kept in or removed one by one
@@ -128,22 +127,28 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
 
 if __name__ == '__main__':
     args = makeParser().parse_args()
+    '''
     validateParams(args)
 
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
     datasetName          =  args.dataset_path.split("/")[-1]
     
-    runId = 1
+    runId = 2
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, runId)
+    
     
     labeledSubsetName   = labeledSubsetPath.split("/")[-1]
     unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
-
-    for runId in range(1, args.n_runs+1):
+    '''
+    labeledSubsetPath   = "/workspace/SlowFastSign/dataset/phoenix2014-labeled-run2"
+    labeledSubsetName   = "phoenix2014-labeled-run2"
+    unlabeledSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-unlabeled-run2"
+    unlabeledSubsetName = "phoenix2014-unlabeled-run2"
+    for runId in range(2, args.n_runs+1):
         print(f"Starting Run {runId} now....")
         
         # Create config files for the unlabeled and labeled datasets
@@ -162,7 +167,7 @@ if __name__ == '__main__':
         preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
 
         # Train gloss generator on labeled subset
-        # subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
+        subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir ./work_dir/{labeledSubsetName}", shell=True, check=True)
 
         # Prepare to train X-Clip on the labeled set
         modelName  = f"microsoft/xclip-base-patch32-{args.x_clip_n_frames}-frames"
@@ -180,17 +185,19 @@ if __name__ == '__main__':
         trainXClip(model=model, 
                    processor=processor,
                    nEpochs=args.x_clip_epochs,
-                   dataloader=labeledTrainDataloader, 
+                   dataloader=labeledTrainDataloader,
+                   saveFolder=f"./work_dir/{labeledSubsetName}",
                    device="cuda"
                    )
 
-
+    
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
-        
+            
         # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/_best_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        
 
         predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.ctm")
         glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
@@ -214,3 +221,6 @@ if __name__ == '__main__':
         unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
         labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
+
+        del processor
+        del model
