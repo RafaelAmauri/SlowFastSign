@@ -1,5 +1,9 @@
 **/__pycache__
 .DS_Store
+phoenix2014-*
+fine_tuned_xclip_model
+fine_tuned_xclip_processor
+*.stm
 work_dir/*
 ctcdecode/*
 dataset/*
