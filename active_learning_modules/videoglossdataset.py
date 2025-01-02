@@ -3,15 +3,14 @@ import torch
 from active_learning_modules.xclip_utils import getKeyFramesFromFolder
 
 class VideoGlossDataset(torch.utils.data.Dataset): # type: ignore
-    def __init__(self, videoPaths, glosses, nFrames):
+    def __init__(self, groundTruthByVideoPath: dict, nFrames: int):
         """
         Args:
-            videoPaths (list): List of paths to video files.
-            glosses (list): List of glosses corresponding to each video.
-            processor (CLIPProcessor): Processor to handle both text and image data.
+            groundTruthByVideoPath (dict): A dict that uses the video paths as keys to index the ground-truth of the dataset.
+            processor     (CLIPProcessor): Processor to handle both text and image data.
         """
-        self.videoPaths = videoPaths
-        self.glosses    = glosses
+        self.videoPaths = list(groundTruthByVideoPath.keys())
+        self.glosses    = list(groundTruthByVideoPath.values())
         self.nFrames    = nFrames
 
     def __len__(self):

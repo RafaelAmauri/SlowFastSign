@@ -27,8 +27,8 @@ from transformers import XCLIPProcessor, XCLIPModel
 
 from active_learning_modules.dataset_utils import splitDataset
 from active_learning_modules.parser import makeParser, validateParams
-from active_learning_modules.xclip import trainXclip, xclipInference
-from active_learning_modules.xclip_utils import parsePredictionsFile, parseAnnotationFile
+from active_learning_modules.xclip import trainXClip, alignmentVideoGeneratedGloss
+from active_learning_modules.xclip_utils import parseSlowFastSignPredictionsFile, parseAnnotationFile, parseInformativenessRanking
 from active_learning_modules.videoglossdataset import VideoGlossDataset, videoGlossDatasetCollateFn
 
 
@@ -59,7 +59,7 @@ def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
     
 
 
-def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesToLabel: int, selectedSamples=None, isFirstLabelingLoop=False):
+def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesToLabel: int, selectedSamples: list, isFirstLabelingLoop=False):
     """Moves the selected data points from the unlabeled pool to the labeled pool. 
 
     Since we already have all the datapoints and this is a simulation, 
@@ -70,9 +70,9 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
     wants to learn from, and this function here is responsible for moving them to the labeled pool, so the next learning round incorporates them.
 
     Args:
-        labeledSubsetPath         (str): The path to the labeled subset
-        unlabeledSubsetPath       (str): The path to the unlabeled subset
-        nSamplesToLabel           (int): How many data samples should be moved to the labeled pool.
+        labeledSubsetPath          (str): The path to the labeled subset
+        unlabeledSubsetPath        (str): The path to the unlabeled subset
+        nSamplesToLabel            (int): How many data samples should be moved to the labeled pool.
         selectedSamples           (list): The names of the samples that were selected to be labeled.
         isFirstLabelingLoop       (bool): Whether or not it is the first labeling loop. This will create a new labeled pool file!
     """
@@ -98,85 +98,95 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
         # The operation for the first labeling loop is the following: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
         random.shuffle(unlabeledPoolData)
 
-        newlyLabeledInstances = unlabeledPoolData[0 : nSamplesToLabel]
-        unlabeledInstances    = unlabeledPoolData[nSamplesToLabel : ]
-    #TODO Finish this
+        newlyLabeledData        = unlabeledPoolData[0 : nSamplesToLabel]
+        remainingUnlabeledData  = unlabeledPoolData[nSamplesToLabel : ]
+    
+    # If it is not the first labeling loop, simply pick the selected samples from the unlabeled pool.
     else:
-        #for i in range(args.)
-        unlabeledInstances    = unlabeledPoolData - selectedSamples
+        newlyLabeledData        = []
+        remainingUnlabeledData  = unlabeledPoolData.copy()
+
+        for unlabeledSample in remainingUnlabeledData:
+            unlabeledSampleFolderName = unlabeledSample.split("|")[0]
+
+            if unlabeledSampleFolderName in selectedSamples:
+                newlyLabeledData.append(unlabeledSample)
+                remainingUnlabeledData.remove(unlabeledSample)
+
+        print(newlyLabeledData)
 
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
     # instead of figuring out what lines should be kept in or removed one by one
     with open(unlabeledPool, "w") as f:
         f.writelines(header)
-        f.writelines(unlabeledInstances)
+        f.writelines(remainingUnlabeledData)
 
     # Next, we append the selected samples to the labeledPool file and we're done!
     with open(labeledPool, "a") as f:
-        f.writelines(newlyLabeledInstances)
+        f.writelines(newlyLabeledData)
 
 
 if __name__ == '__main__':
-    
     args = makeParser().parse_args()
     validateParams(args)
 
-    
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
     datasetName          =  args.dataset_path.split("/")[-1]
-
-    # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]
-    labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path)
+    
+    runId = 1
+    # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
+    labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, runId)
     
     labeledSubsetName   = labeledSubsetPath.split("/")[-1]
     unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
-    
-    # Create config files for the unlabeled and labeled datasets
-    for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
-        config = dict(  
-                        dataset_root      = f"{subsetPath}/phoenix-2014-multisigner",
-                        dict_path         = './preprocess/phoenix2014/gloss_dict.npy',
-                        evaluation_dir    = './evaluation/slr_eval',
-                        evaluation_prefix =f"{subsetName}-groundtruth"
-                        )
-        
-        with open(f"./configs/{subsetName}.yaml", "w") as outfile:
-            yaml.dump(config, outfile)
 
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
-    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=None, isFirstLabelingLoop=True)
-    
-    # Run preprocess routine for labeled subset
-    preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
+    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
 
-    # Train gloss generator on labeled subset
-    subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
-    
-    # Train Xclip on the labeled set as well
-    modelName  = "microsoft/xclip-base-patch32-16-frames"
-    processor  = XCLIPProcessor.from_pretrained(modelName)
-    model      = XCLIPModel.from_pretrained(modelName)
-    labeledTrainVideoPaths, labeledTrainGloss = parseAnnotationFile(labeledSubsetPath, "train")
-    labeledTrainVideoGloss = VideoGlossDataset(labeledTrainVideoPaths, labeledTrainGloss, 16)
-    labeledTrainDataloader = torch.utils.data.DataLoader(labeledTrainVideoGloss, batch_size=8, shuffle=True, collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor))
-    
-    processor = XCLIPProcessor.from_pretrained("fine_tuned_xclip_processor")
-    model     = XCLIPModel.from_pretrained("fine_tuned_xclip_model")
+    for runId in range(1, args.n_runs+1):
+        # Create config files for the unlabeled and labeled datasets
+        for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
+            config = dict(  
+                            dataset_root      = f"{subsetPath}/phoenix-2014-multisigner",
+                            dict_path         = './preprocess/phoenix2014/gloss_dict.npy',
+                            evaluation_dir    = './evaluation/slr_eval',
+                            evaluation_prefix =f"{subsetName}-groundtruth"
+                            )
+            
+            with open(f"./configs/{subsetName}.yaml", "w") as outfile:
+                yaml.dump(config, outfile)
+        
+        # Run preprocess routine for labeled subset
+        preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
 
-    trainXclip(model, processor, 25, labeledTrainDataloader, "cuda")
+        # Train gloss generator on labeled subset
+        # subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir work_dir/{labeledSubsetName}", shell=True, check=True)
 
-    # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
-    # Run preprocess routine for the unlabeled subset
-    preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
+        # Prepare to train X-Clip on the labeled set
+        modelName  = "microsoft/xclip-base-patch32-16-frames"
+        processor  = XCLIPProcessor.from_pretrained(modelName)
+        model      = XCLIPModel.from_pretrained(modelName)
 
-    # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-    subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/dev_103.03_epoch0_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        labeledTrainGroundTruthByVideoPath = parseAnnotationFile(labeledSubsetPath, "train")
+        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, 16)
+        labeledTrainDataloader             = torch.utils.data.DataLoader(labeledTrainVideoGlossDataset, batch_size=6, shuffle=True, collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor))
 
-    predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.ctm")
-    videoPaths, glossPredictions = parsePredictionsFile(predictionsFilePath, unlabeledSubsetPath)
+        trainXClip(model, processor, 10, labeledTrainDataloader, "cuda")
 
-    # Now we find out which are the most informative predictions made for the unlabeled set.
-    mostInformativeSamples = xclipInference(model, processor, videoPaths, glossPredictions, f"./work_dir/{unlabeledSubsetName}", "cuda")
+        # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
+        # Run preprocess routine for the unlabeled subset
+        preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
+        
+        # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
+        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
 
-    raise Exception
-    labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
+        predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.ctm")
+        glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
+        
+        # Now we find out which are the most informative predictions made for the unlabeled set.
+        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, f"./work_dir/{unlabeledSubsetName}", "cuda")
+
+        # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
+        mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
+        
+        labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, 2, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)

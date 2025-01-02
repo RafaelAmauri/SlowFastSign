@@ -10,14 +10,15 @@ logging.basicConfig(
 )
 
 
-def splitDataset(datasetPath: str) -> tuple[str, str]:
+def splitDataset(datasetPath: str, runId: int) -> tuple[str, str]:
     """
     Creates copies of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
     The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
     copying the images.
 
     Args:
-        datasetPath (str): a path pointing to where the dataset is
+        datasetPath (str): A path pointing to where the dataset is.
+        runId       (str): The ID to what selection loop this is.
     """
     
     datasetParentFolder  =  "/".join(datasetPath.split("/")[ : -1])
@@ -25,8 +26,8 @@ def splitDataset(datasetPath: str) -> tuple[str, str]:
     
     # Save the path for the labeled and unlabeled folders
 
-    labeledSubsetPath   = os.path.join(datasetParentFolder, f"{datasetName}-labeled")
-    unlabeledSubsetPath = os.path.join(datasetParentFolder, f"{datasetName}-unlabeled")
+    labeledSubsetPath   = os.path.join(datasetParentFolder, f"{datasetName}-labeled-run{runId}")
+    unlabeledSubsetPath = os.path.join(datasetParentFolder, f"{datasetName}-unlabeled-run{runId}")
 
     copyDataset(datasetPath, labeledSubsetPath)
     copyDataset(datasetPath, unlabeledSubsetPath)
@@ -90,8 +91,8 @@ def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
     with images to avoid making unecessary copies.
 
     Args:
-        datasetPath     (str): a path pointing to where the dataset is
-        newDatasetPath  (str): Where the copy is going to be created
+        datasetPath      (str): a path pointing to where the dataset is
+        newDatasetPath   (str): Where the copy is going to be created
         copyAnnotations (bool): Whether to copy the original annotation files to the new directory as well. Usually not recommended because
                                 it might mess things up when splitDataset() tries to set up the labeled and unlabeled pools. But if what
                                 you want is simply to make a perfect copy of datasetPath, then you can enable it without problems!
@@ -123,9 +124,9 @@ def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
             os.symlink(originalSubsetPath, newSubsetPath)
 
 
-    # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[dev,test].corpus.csv
+    # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[train,test,dev].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[train,test,dev].corpus.csv
     if copyAnnotations:
-        for split in ["dev", "test"]:
+        for split in ["train","test","dev"]:
             originalAnnotationPath   = os.path.join(datasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
             newDatasetAnnotationPath = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
             

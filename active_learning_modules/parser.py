@@ -22,10 +22,14 @@ def makeParser():
                         help='The location of the dataset.')
 
     parser.add_argument('-l', '--n-labels', type=int, required=True,
-                        help="The number of unlabeled samples that should be labeled each time the labeling step occurs.")
+                        help="The number of unlabeled samples that should be labeled each time the labeling step occurs. Total number of labeled samples will be --n-labels * --n-runs.")
 
-    parser.add_argument('-m', '--mode', type=str, required=True, choices=["random", "active"],
-                        help="The if active, uses the new architecture for active learning. If random, uses random sampling.")
+    parser.add_argument('-n', '--n-runs', type=int, default=1,
+                        help="How many loops the active learning framework will go through. This is important because it \
+                        allows to save the results of individual sample selection loops, their respective training files, \
+                        the generated glosses and their rankings all in individual folders. \
+                        It's important to note that the total number of labeled samples will be --n-labels * --n-runs. \
+                        Defaults to 1.")
 
     return parser
 
@@ -35,25 +39,12 @@ def validateParams(args) -> None:
 
     Args:
         args (an argparse.Namespace object): contains the parameters in a easy to handle object
-
-    Raises:
-        ValueError: _description_
-        FileExistsError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        ValueError: _description_
-        FileExistsError: _description_
-        NotImplementedError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        FileNotFoundError: _description_
-        ValueError: _description_
-        FileExistsError: _description_
-        FileExistsError: _description_
-        ValueError: _description_
     """
     if args.n_labels <= 0:
         raise ValueError("Number of labels must be greater than 0.")
+
+    if args.n_runs <= 0:
+        raise ValueError("Number of runs must be greater than 0.")
 
     if not os.path.exists(args.dataset_path):
         raise FileNotFoundError("-d points to a path that does not exist.")
