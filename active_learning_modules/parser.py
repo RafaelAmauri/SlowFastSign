@@ -32,6 +32,9 @@ def makeParser():
     parser.add_argument('-b', '--x-clip-batch-size', type=int, required=True,
                         help="The batch size for the X-Clip model")
     
+    parser.add_argument('-w', '--work-dir', type=str, required=True,
+                        help="Where to save the outputs for inference and training.")
+
 
     return parser
 
