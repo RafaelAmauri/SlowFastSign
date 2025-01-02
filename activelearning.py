@@ -25,7 +25,7 @@ import os
 
 from transformers import XCLIPProcessor, XCLIPModel
 
-from active_learning_modules.dataset_utils import splitDataset
+from active_learning_modules.dataset_utils import splitDataset, copyDataset
 from active_learning_modules.parser import makeParser, validateParams
 from active_learning_modules.xclip import trainXClip, alignmentVideoGeneratedGloss
 from active_learning_modules.xclip_utils import parseSlowFastSignPredictionsFile, parseAnnotationFile, parseInformativenessRanking
@@ -144,6 +144,8 @@ if __name__ == '__main__':
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
 
     for runId in range(1, args.n_runs+1):
+        print(f"Starting Run {runId} now....")
+        
         # Create config files for the unlabeled and labeled datasets
         for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
             config = dict(  
@@ -168,10 +170,15 @@ if __name__ == '__main__':
         model      = XCLIPModel.from_pretrained(modelName)
 
         labeledTrainGroundTruthByVideoPath = parseAnnotationFile(labeledSubsetPath, "train")
-        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, 16)
+        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, nFrames=16)
         labeledTrainDataloader             = torch.utils.data.DataLoader(labeledTrainVideoGlossDataset, batch_size=6, shuffle=True, collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor))
 
-        trainXClip(model, processor, 10, labeledTrainDataloader, "cuda")
+        trainXClip(model=model, 
+                   processor=processor, 
+                   nEpochs=3, 
+                   dataloader=labeledTrainDataloader, 
+                   device="cuda")
+
 
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
         # Run preprocess routine for the unlabeled subset
@@ -189,4 +196,16 @@ if __name__ == '__main__':
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
         
-        labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, 2, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
+
+        newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)
+        newUnlabeledSubsetPath = unlabeledSubsetPath.rstrip(str(runId)) + str(runId+1)
+
+        copyDataset(labeledSubsetPath,   newLabeledSubsetPath,   copyAnnotations=True)
+        copyDataset(unlabeledSubsetPath, newUnlabeledSubsetPath, copyAnnotations=True)
+
+        labeledSubsetPath   = newLabeledSubsetPath
+        labeledSubsetName   = labeledSubsetPath.split("/")[-1]
+        unlabeledSubsetPath = newUnlabeledSubsetPath
+        unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
+
+        labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
