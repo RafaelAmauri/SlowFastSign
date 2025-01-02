@@ -127,7 +127,6 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
 
 if __name__ == '__main__':
     args = makeParser().parse_args()
-    '''
     validateParams(args)
 
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
@@ -143,13 +142,10 @@ if __name__ == '__main__':
 
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
-    '''
-    labeledSubsetPath   = "/workspace/SlowFastSign/dataset/phoenix2014-labeled-run2"
-    labeledSubsetName   = "phoenix2014-labeled-run2"
-    unlabeledSubsetPath = "/workspace/SlowFastSign/dataset/phoenix2014-unlabeled-run2"
-    unlabeledSubsetName = "phoenix2014-unlabeled-run2"
+    
     for runId in range(2, args.n_runs+1):
         print(f"Starting Run {runId} now....")
+        
         
         # Create config files for the unlabeled and labeled datasets
         for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
@@ -167,7 +163,7 @@ if __name__ == '__main__':
         preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
 
         # Train gloss generator on labeled subset
-        subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir ./work_dir/{labeledSubsetName}", shell=True, check=True)
+        subprocess.run(f"python3 main.py --device 0 --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
 
         # Prepare to train X-Clip on the labeled set
         modelName  = f"microsoft/xclip-base-patch32-{args.x_clip_n_frames}-frames"
@@ -186,24 +182,29 @@ if __name__ == '__main__':
                    processor=processor,
                    nEpochs=args.x_clip_epochs,
                    dataloader=labeledTrainDataloader,
-                   saveFolder=f"./work_dir/{labeledSubsetName}",
+                   saveFolder=f"./{args.work_dir}/{labeledSubsetName}",
                    device="cuda"
                    )
 
-    
+        # Remove from VRAM 
+        del model
+        del processor
+
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
-            
-        # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./work_dir/{labeledSubsetName}/_best_model.pt --work-dir ./work_dir/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
         
-
-        predictionsFilePath = os.path.join(f"./work_dir/{unlabeledSubsetName}", "tmp2.ctm")
+        # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
+        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./{args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir ./{args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        
+        predictionsFilePath = os.path.join(f"./{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
         glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
         
+        processor  = XCLIPProcessor.from_pretrained(f"./{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_processor")
+        model      = XCLIPModel.from_pretrained(f"./{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_model")
+
         # Now we find out which are the most informative predictions made for the unlabeled set.
-        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, f"./work_dir/{unlabeledSubsetName}", "cuda")
+        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, f"./{args.work_dir}/{unlabeledSubsetName}", "cuda")
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
