@@ -142,7 +142,7 @@ if __name__ == '__main__':
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
     
-    for runId in range(2, args.n_runs+1):
+    for runId in range(1, args.n_runs+1):
         print(f"Starting Run {runId} now....")
         
         
