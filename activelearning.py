@@ -22,6 +22,7 @@ import torch.utils
 import torch.utils.data
 import yaml
 import os
+import gc
 
 from transformers import XCLIPProcessor, XCLIPModel
 
@@ -185,9 +186,11 @@ if __name__ == '__main__':
                    device="cuda"
                    )
 
-        # Remove from VRAM 
+        # Remove X-Clip model from VRAM 
         del model
         del processor
+        gc.collect()
+        torch.cuda.empty_cache()
 
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
         # Run preprocess routine for the unlabeled subset
@@ -208,7 +211,6 @@ if __name__ == '__main__':
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
         
-
         newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)
         newUnlabeledSubsetPath = unlabeledSubsetPath.rstrip(str(runId)) + str(runId+1)
 
