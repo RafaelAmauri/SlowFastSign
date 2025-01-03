@@ -132,10 +132,9 @@ if __name__ == '__main__':
     datasetParentFolder  =  "/".join(args.dataset_path.split("/")[ : -1])
     datasetName          =  args.dataset_path.split("/")[-1]
     
-    runId = 2
+    runId = 1
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, runId)
-    
     
     labeledSubsetName   = labeledSubsetPath.split("/")[-1]
     unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
