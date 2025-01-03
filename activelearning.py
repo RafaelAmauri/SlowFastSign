@@ -197,7 +197,7 @@ if __name__ == '__main__':
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
         
         # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir ./{args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
         
         predictionsFilePath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
         glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
