@@ -182,7 +182,7 @@ if __name__ == '__main__':
                    processor=processor,
                    nEpochs=args.x_clip_epochs,
                    dataloader=labeledTrainDataloader,
-                   saveFolder=f"./{args.work_dir}/{labeledSubsetName}",
+                   saveFolder=f"{args.work_dir}/{labeledSubsetName}",
                    device="cuda"
                    )
 
@@ -197,16 +197,16 @@ if __name__ == '__main__':
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
         
         # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights ./{args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir ./{args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        subprocess.run(f"python main.py --device 0 --dataset {unlabeledSubsetName} --phase test --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir ./{args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
         
-        predictionsFilePath = os.path.join(f"./{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
+        predictionsFilePath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
         glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
         
-        processor  = XCLIPProcessor.from_pretrained(f"./{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_processor")
-        model      = XCLIPModel.from_pretrained(f"./{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_model")
+        processor  = XCLIPProcessor.from_pretrained(f"{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_processor")
+        model      = XCLIPModel.from_pretrained(f"{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_model")
 
         # Now we find out which are the most informative predictions made for the unlabeled set.
-        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, f"./{args.work_dir}/{unlabeledSubsetName}", "cuda")
+        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, args.x_clip_n_frames, f"{args.work_dir}/{unlabeledSubsetName}", "cuda")
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
@@ -226,3 +226,5 @@ if __name__ == '__main__':
 
         del processor
         del model
+        gc.collect()
+        torch.cuda.empty_cache()
