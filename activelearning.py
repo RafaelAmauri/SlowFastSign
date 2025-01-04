@@ -106,15 +106,16 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
     else:
         newlyLabeledData        = []
         remainingUnlabeledData  = unlabeledPoolData.copy()
+        
+        for unlabeledSample in unlabeledPoolData:
+            unlabeledFolderName = unlabeledSample.split("|")[0]
 
-        for unlabeledSample in remainingUnlabeledData:
-            unlabeledSampleFolderName = unlabeledSample.split("|")[0]
-
-            if unlabeledSampleFolderName in selectedSamples:
+            if unlabeledFolderName in selectedSamples:
+                print(unlabeledFolderName)
                 newlyLabeledData.append(unlabeledSample)
                 remainingUnlabeledData.remove(unlabeledSample)
 
-
+    
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
     # instead of figuring out what lines should be kept in or removed one by one
     with open(unlabeledPool, "w") as f:
@@ -124,6 +125,7 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
     # Next, we append the selected samples to the labeledPool file and we're done!
     with open(labeledPool, "a") as f:
         f.writelines(newlyLabeledData)
+    
 
 
 if __name__ == '__main__':
@@ -222,6 +224,7 @@ if __name__ == '__main__':
         unlabeledSubsetPath = newUnlabeledSubsetPath
         unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
+        print(mostInformativeSamples)
         labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
 
         del processor
