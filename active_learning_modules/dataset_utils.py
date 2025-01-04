@@ -2,7 +2,7 @@ import shutil
 import os
 
 
-def splitDataset(datasetPath: str, runId: int) -> tuple[str, str]:
+def splitDataset(datasetPath: str, runId: int):
     """
     Creates copies of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
     The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
