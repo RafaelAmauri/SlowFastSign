@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 
 from PIL import Image
@@ -63,7 +64,7 @@ def getKeyFramesFromFolder(path: str, nFrames: int) -> list:
 
     return keyFrames
 
-import json
+
 def parseInformativenessRanking(filePath: str):
     with open(filePath, "r") as f:
         rankings = json.load(f)
