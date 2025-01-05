@@ -165,7 +165,10 @@ if __name__ == '__main__':
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
 
         # Prepare to train X-Clip on the labeled set
-        modelName  = f"microsoft/xclip-base-patch32-{args.x_clip_n_frames}-frames"
+        if args.x_clip_n_frames == 16:
+            modelName  = f"microsoft/xclip-base-patch32-16-frames"
+        else:
+            modelName  = f"microsoft/xclip-base-patch32"
         processor  = XCLIPProcessor.from_pretrained(modelName)
         model      = XCLIPModel.from_pretrained(modelName)
 
