@@ -2,7 +2,7 @@ import shutil
 import os
 
 
-def splitDataset(datasetPath: str, runId: int):
+def splitDataset(datasetPath: str, customName: str, runId: int):
     """
     Creates copies of datasetPath for serving as the labeled and the unlabeled subsets in the active learning loop.
     The structure copies the one used in the phoenix2014 dataset. To avoid copying all of the data, symlinks to the original dataset are used for
@@ -10,6 +10,7 @@ def splitDataset(datasetPath: str, runId: int):
 
     Args:
         datasetPath (str): A path pointing to where the dataset is.
+        customName  (str): An optional custom name for the labeled and unlabeled splits. Could be something like: 'Phoenix20AL5Steps16Frames' for example
         runId       (str): The ID to what selection loop this is.
     """
     
@@ -18,8 +19,8 @@ def splitDataset(datasetPath: str, runId: int):
     
     # Save the path for the labeled and unlabeled folders
 
-    labeledSubsetPath   = os.path.join(datasetParentFolder, f"{datasetName}-labeled-run{runId}")
-    unlabeledSubsetPath = os.path.join(datasetParentFolder, f"{datasetName}-unlabeled-run{runId}")
+    labeledSubsetPath   = os.path.join(datasetParentFolder, f"{datasetName}-{customName}-labeled-run{runId}")
+    unlabeledSubsetPath = os.path.join(datasetParentFolder, f"{datasetName}-{customName}-unlabeled-run{runId}")
 
     copyDataset(datasetPath, labeledSubsetPath)
     copyDataset(datasetPath, unlabeledSubsetPath)
