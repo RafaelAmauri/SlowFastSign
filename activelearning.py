@@ -207,7 +207,7 @@ if __name__ == '__main__':
         model      = XCLIPModel.from_pretrained(f"{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_model")
 
         # Now we find out which are the most informative predictions made for the unlabeled set.
-        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, args.x_clip_n_frames, f"{args.work_dir}/{unlabeledSubsetName}", "cuda")
+        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, args.x_clip_n_frames, f"{args.work_dir}/{unlabeledSubsetName}", f"cuda:{args.device}")
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
