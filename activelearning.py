@@ -111,7 +111,6 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
             unlabeledFolderName = unlabeledSample.split("|")[0]
 
             if unlabeledFolderName in selectedSamples:
-                print(unlabeledFolderName)
                 newlyLabeledData.append(unlabeledSample)
                 remainingUnlabeledData.remove(unlabeledSample)
 
@@ -224,7 +223,6 @@ if __name__ == '__main__':
         unlabeledSubsetPath = newUnlabeledSubsetPath
         unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
-        print(mostInformativeSamples)
         labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
 
         del processor
