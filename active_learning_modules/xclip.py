@@ -69,14 +69,18 @@ def alignmentVideoGeneratedGloss(model, processor, glossesByFullVideoPath: dict,
     return generatedGlossAlignmentRanking
 
 
-def trainXClip(model, processor, nEpochs: int, dataloader, saveFolder: str, device: str):
+def trainXClip(model, processor, nEpochs: int, dataloader, saveFolder: str, nAccumulationSteps: int, device: str):
     """Trains an X-Clip (https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/xclip) Video-to-Text alignment model. 
+
+    The authors of X-Clip recommend a batch size of 256. This would require a lot of VRAM, so instead we do a little trick called batch accumulation.
+    Essentially, instead of running the backprop pass after every batch, we run it after 256 / batch_size steps.
 
     Args:
         model          (transformers.XCLIPModel): The XClip model.
         processor  (transformers.XCLIPProcessor): The XClip text processor.
         nEpochs                            (int): For how many epochs the model will train.
         dataloader (torch.utils.data.Dataloader): The predefined dataloader.
+        nAccumulationSteps                 (int): The number of accumulation steps. Is defined as 256 / batch_size
         device                             (str): Where to run the model. CPU, Cuda, etc.
     """
     optimizer  = torch.optim.AdamW(model.parameters(), lr=5e-6)
@@ -89,7 +93,7 @@ def trainXClip(model, processor, nEpochs: int, dataloader, saveFolder: str, devi
 
     for epoch in range(nEpochs):
         loop = tqdm(dataloader, total=len(dataloader), desc=f"Epoch {epoch+1}")
-        for batch in loop:
+        for batchIdx, batch in enumerate(loop):
             # Get the inputs
 
             input_ids = batch['input_ids'].squeeze(1).to(model.device)
@@ -102,13 +106,19 @@ def trainXClip(model, processor, nEpochs: int, dataloader, saveFolder: str, devi
             logits_per_text = outputs.logits_per_text
 
             ground_truth = torch.arange(len(batch['input_ids']), dtype=torch.long, device=device)
+            
             loss = (loss_video(logits_per_video,ground_truth) + loss_txt(logits_per_text,ground_truth))/2
-
+            loss = loss / nAccumulationSteps
 
             # Backward pass
             loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+
+            # Update the model weights every `accumulation_steps`
+            if (batchIdx + 1) % nAccumulationSteps == 0 or (batchIdx + 1) == len(dataloader):
+                
+                optimizer.step()  # Update weights
+                optimizer.zero_grad()  # Clear accumulated gradients
+
 
     processor.save_pretrained(f"{saveFolder}/fine_tuned_xclip_processor")
     model.save_pretrained(f"{saveFolder}/fine_tuned_xclip_model")

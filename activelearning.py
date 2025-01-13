@@ -130,7 +130,7 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
 if __name__ == '__main__':
     args = makeParser().parse_args()
     validateParams(args)
-
+    
     runId = 1
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, args.custom_name, runId)
@@ -143,7 +143,6 @@ if __name__ == '__main__':
     
     for runId in range(1, args.n_runs+1):
         print(f"Starting Run {runId} now....")
-        
         
         # Create config files for the unlabeled and labeled datasets
         for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
@@ -162,12 +161,15 @@ if __name__ == '__main__':
 
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
-
+        
         # Prepare to train X-Clip on the labeled set
-        if args.x_clip_n_frames == 16:
+        if args.x_clip_n_frames == 32:
+            modelName  = f"microsoft/xclip-base-patch16-zero-shot"
+        elif args.x_clip_n_frames == 16:
             modelName  = f"microsoft/xclip-base-patch32-16-frames"
         else:
             modelName  = f"microsoft/xclip-base-patch32"
+
         processor  = XCLIPProcessor.from_pretrained(modelName)
         model      = XCLIPModel.from_pretrained(modelName)
 
@@ -184,6 +186,7 @@ if __name__ == '__main__':
                    nEpochs=args.x_clip_epochs,
                    dataloader=labeledTrainDataloader,
                    saveFolder=f"{args.work_dir}/{labeledSubsetName}",
+                   nAccumulationSteps=256//args.x_clip_batch_size,
                    device=f"cuda:{args.device}"
                    )
 

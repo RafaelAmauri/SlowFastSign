@@ -23,7 +23,7 @@ def makeParser():
                         It's important to note that the total number of labeled samples will be --n-labels * --n-runs. \
                         Defaults to 1.")
     
-    parser.add_argument('-f', '--x-clip-n-frames', type=int, choices=[8, 16], required=True,
+    parser.add_argument('-f', '--x-clip-n-frames', type=int, choices=[8, 16, 32], required=True,
                         help="How many frames the X-Clip model should use.")
 
     parser.add_argument('-e', '--x-clip-epochs', type=int, required=True,
@@ -59,8 +59,8 @@ def validateParams(args) -> None:
     if args.x_clip_epochs <= 0:
         raise ValueError("Number of training epochs for X-Clip must be greater than 0.")
 
-    if args.x_clip_batch_size <= 1:
-        raise ValueError("Batch size for X-Clip must be greater than 1.")
+    if args.x_clip_batch_size <= 0:
+        raise ValueError("Batch size for X-Clip must be greater than 0.")
 
 
     if not os.path.exists(args.dataset_path):
