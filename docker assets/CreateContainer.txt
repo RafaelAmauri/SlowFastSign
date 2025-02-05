@@ -1,3 +1,3 @@
 To create the docker container, run:
 
-docker run --shm-size=32g --gpus=all --name=slowfastsign 
+docker run -d -it --shm-size=48g --gpus=all -v /home/rada/SlowFastSign/:/workspace -v /draft-ssd-projects/captarlibras_finep/rada:/draft-ssd-projects/captarlibras_finep/rada -v /draft-hdd-projects/captarlibras_finep/rada:/draft-hdd-projects/captarlibras_finep/rada --name=slowfast slowfastimg bash
