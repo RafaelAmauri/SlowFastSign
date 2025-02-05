@@ -15,7 +15,7 @@ RUN apt install ffmpeg libsm6 libxext6 gcc g++ build-essential -y
 
 # Cria um environment com conda. **TEM** que ser com conda.
 RUN conda create -n slowfastvenv
-RUN conda install -n slowfastvenv -y pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia; conda install -n slowfastvenv -y python=3.9
+RUN conda install -n slowfastvenv -y python=3.9; conda install -n slowfastvenv -y pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
 
 # Favor rodar conda init ao entrar no container para ativar o conda env e depois rodar o restante dos pip install e dependências do SlowFastSign e do ctcdecode por conta própria!
 # Esses comandos acima apenas criam um venv do conda compatível com o ctcdecode e o SlowFastSign. 
