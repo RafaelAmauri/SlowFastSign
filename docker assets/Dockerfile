@@ -1,6 +1,6 @@
 # Define uma docker image custom que facilita rodar o slowfastsign
 
-FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel
+FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-devel
 
 # Set the working directory inside the container
 WORKDIR /workspace
