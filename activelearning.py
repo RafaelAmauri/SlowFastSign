@@ -14,7 +14,6 @@
 
 
 import subprocess
-import logging
 import random
 import shutil
 import torch
@@ -31,13 +30,6 @@ from active_learning_modules.parser import makeParser, validateParams
 from active_learning_modules.xclip import trainXClip, alignmentVideoGeneratedGloss
 from active_learning_modules.xclip_utils import parseSlowFastSignPredictionsFile, parseAnnotationFile, parseInformativenessRanking
 from active_learning_modules.videoglossdataset import VideoGlossDataset, videoGlossDatasetCollateFn
-
-
-logging.basicConfig(
-    filename='./activelearning.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
 
 
 def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
