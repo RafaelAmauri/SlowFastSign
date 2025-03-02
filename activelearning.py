@@ -153,48 +153,35 @@ if __name__ == '__main__':
 
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
+
+
+        '''
+        FELIZMENTE Vamos jogar fora muita coisa e simplificar muita coisa também. O que vai embora:
+
+
+        * Treinamento do XClip
+        * Inferencia do Slowfast no conjunto de teste unlabeled
+        * Inferencia no XClip com os testes gerados pelo Slowfast
+        * Ranking dos videos com similaridade alta entre texto e video
+
         
-        # Prepare to train X-Clip on the labeled set
-        if args.x_clip_n_frames == 32:
-            modelName  = f"microsoft/xclip-base-patch16-zero-shot"
-        elif args.x_clip_n_frames == 16:
-            modelName  = f"microsoft/xclip-base-patch32-16-frames"
-        else:
-            modelName  = f"microsoft/xclip-base-patch32"
-
-        processor  = XCLIPProcessor.from_pretrained(modelName)
-        model      = XCLIPModel.from_pretrained(modelName)
-
-        labeledTrainGroundTruthByVideoPath = parseAnnotationFile(labeledSubsetPath, "train")
-        labeledTrainVideoGlossDataset      = VideoGlossDataset(labeledTrainGroundTruthByVideoPath, nFrames=args.x_clip_n_frames)
-        labeledTrainDataloader             = torch.utils.data.DataLoader(labeledTrainVideoGlossDataset, 
-                                                                        batch_size=args.x_clip_batch_size, 
-                                                                        shuffle=True, 
-                                                                        collate_fn=lambda batch: videoGlossDatasetCollateFn(batch, processor)
-                                                                        )
-
-        trainXClip(model=model, 
-                   processor=processor,
-                   nEpochs=args.x_clip_epochs,
-                   dataloader=labeledTrainDataloader,
-                   saveFolder=f"{args.work_dir}/{labeledSubsetName}",
-                   nAccumulationSteps=256//args.x_clip_batch_size,
-                   device=f"cuda:{args.device}"
-                   )
-
-        # Remove X-Clip model from VRAM 
-        del model
-        del processor
-        gc.collect()
-        torch.cuda.empty_cache()
-
+        O que entra no lugar:
+        * Inferencia do Slowfast para extração de features do conjunto de teste do unlabeled
+        * Ranking dos valores de similaridade das features
+        
+        ''' 
+        
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
+
+        # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
+        # and then the features for the videos in the unlabeled subset.subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName} --enable-sample-selection", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
         
-        # Run inference on the unlabeled set with the weights of the model that was just trained on the labeled set
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase test --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName} --enable-sample-selection", shell=True, check=True)
-        
+        raise Exception
+
         predictionsFilePath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
         glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
         

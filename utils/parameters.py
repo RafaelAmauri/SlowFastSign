@@ -30,7 +30,10 @@ def get_parser():
     # processor
     parser.add_argument(
         '--phase', default='train', help='can be train, test and features')
-
+    
+    parser.add_argument('--feature-folders', nargs="+", type=str, default=None, choices=["train", "test", "dev"],
+                        help="what subset to extract the features from. Can be train, test or dev.")
+    
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # debug
     parser.add_argument(
@@ -164,11 +167,15 @@ def get_parser():
         help='stop training in which epoch')
 
     ## Active Learning Parameters
+
+    ## A hacky way to load only the data in the test split. This was inherited from the XClip version.
+    # This exists because normally the code doesn't let me run inference only for the test split, so this hack IS NECESSARY
+    # if you want to do that.
     parser.add_argument(
-        ('--enable-sample-selection'),
+        ('--test-inference'),
         action='store_true',
         default=False,
-        help="If the model is being used for active learning and it is selecting samples from the unlabeled pool"
+        help="If you want to run inference only on the test subset please enable this flag."
     )
     return parser
 

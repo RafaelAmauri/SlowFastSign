@@ -123,7 +123,7 @@ class Processor():
                                 "test", 6667, self.arg.work_dir, self.recoder, self.arg.evaluate_tool)
             self.recoder.print_log('Evaluation Done.\n')
         elif self.arg.phase == "features":
-            for mode in ["train", "dev", "test"]:
+            for mode in self.arg.feature_folders:
                 seq_feature_generation(
                     self.data_loader[mode + "_eval" if mode == "train" else mode],
                     self.model, self.device, mode, self.arg.work_dir, self.recoder
@@ -225,8 +225,11 @@ class Processor():
             dataset_list = zip(["train", "dev"], [True, False])
         elif 'phoenix' in self.arg.dataset:
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
-            if self.arg.enable_sample_selection:
-                dataset_list = zip(["test"], [False]) 
+            # A hacky way to load only the data in the test split. This was inherited from the XClip version.
+            # This exists because normally the code doesn't let me run inference only for the test split, so this hack IS NECESSARY
+            # if you want to do that.
+            if self.arg.test_inference:
+                dataset_list = zip(["test"], [False])
         elif self.arg.dataset == 'CSL-Daily':
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
         for idx, (mode, train_flag) in enumerate(dataset_list):
