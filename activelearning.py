@@ -13,23 +13,18 @@
     # Voltar ao passo 1 e repetir até acabar as amostras
 
 
+import os
+os.environ['OPENBLAS_NUM_THREADS'] = "4"
+
 import subprocess
 import random
 import shutil
-import torch
-import torch.utils
-import torch.utils.data
 import yaml
-import os
-import gc
-
-from transformers import XCLIPProcessor, XCLIPModel
 
 from active_learning_modules.dataset_utils import splitDataset, copyDataset
 from active_learning_modules.parser import makeParser, validateParams
-from active_learning_modules.xclip import trainXClip, alignmentVideoGeneratedGloss
-from active_learning_modules.xclip_utils import parseSlowFastSignPredictionsFile, parseAnnotationFile, parseInformativenessRanking
-from active_learning_modules.videoglossdataset import VideoGlossDataset, videoGlossDatasetCollateFn
+
+import rankbyfeature
 
 
 def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
@@ -70,7 +65,7 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
         isFirstLabelingLoop       (bool): Whether or not it is the first labeling loop. This will create a new labeled pool file!
     """
 
-    labeledPool   = os.path.join(labeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
+    labeledPool   = os.path.join(labeledSubsetPath,   "phoenix-2014-multisigner/annotations/manual/train.corpus.csv")
     unlabeledPool = os.path.join(unlabeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/test.corpus.csv")
 
     # Get everything in the unlabeled pool
@@ -126,7 +121,7 @@ if __name__ == '__main__':
     runId = 1
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, args.custom_name, runId)
-    
+
     labeledSubsetName   = labeledSubsetPath.split("/")[-1]
     unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
@@ -140,9 +135,9 @@ if __name__ == '__main__':
         for subsetPath, subsetName in zip([labeledSubsetPath, unlabeledSubsetPath], [labeledSubsetName, unlabeledSubsetName]):
             config = dict(  
                             dataset_root      = f"{subsetPath}/phoenix-2014-multisigner",
-                            dict_path         = './preprocess/phoenix2014/gloss_dict.npy',
-                            evaluation_dir    = './evaluation/slr_eval',
-                            evaluation_prefix =f"{subsetName}-groundtruth"
+                            dict_path         =  './preprocess/phoenix2014/gloss_dict.npy',
+                            evaluation_dir    =  './evaluation/slr_eval',
+                            evaluation_prefix = f"{subsetName}-groundtruth"
                             )
             
             with open(f"./configs/{subsetName}.yaml", "w") as outfile:
@@ -150,49 +145,37 @@ if __name__ == '__main__':
         
         # Run preprocess routine for labeled subset
         preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
-
+        
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
 
-
-        '''
-        FELIZMENTE Vamos jogar fora muita coisa e simplificar muita coisa também. O que vai embora:
-
-
-        * Treinamento do XClip
-        * Inferencia do Slowfast no conjunto de teste unlabeled
-        * Inferencia no XClip com os testes gerados pelo Slowfast
-        * Ranking dos videos com similaridade alta entre texto e video
-
         
-        O que entra no lugar:
-        * Inferencia do Slowfast para extração de features do conjunto de teste do unlabeled
-        * Ranking dos valores de similaridade das features
-        
-        ''' 
-        
-        # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset    
+        # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset
+
+
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
         # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
-        # and then the features for the videos in the unlabeled subset.subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName} --enable-sample-selection", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
+        # and then the features for the videos in the unlabeled subset.
         
-        raise Exception
+        # Versão CORRETA.
+        # subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
+        # subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
+        
+        # Versão de DEBUG que usa os melhores pesos possíveis.
+        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
 
-        predictionsFilePath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}", "tmp2.ctm")
-        glossesByVideoPath  = parseSlowFastSignPredictionsFile(predictionsFilePath, unlabeledSubsetPath)
-        
-        processor  = XCLIPProcessor.from_pretrained(f"{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_processor")
-        model      = XCLIPModel.from_pretrained(f"{args.work_dir}/{labeledSubsetName}/fine_tuned_xclip_model")
+        labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
+        unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
+
 
         # Now we find out which are the most informative predictions made for the unlabeled set.
-        mostInformativeSamples = alignmentVideoGeneratedGloss(model, processor, glossesByVideoPath, args.x_clip_n_frames, f"{args.work_dir}/{unlabeledSubsetName}", f"cuda:{args.device}")
+        mostInformativeSamples = rankbyfeature.rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath)
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
-        mostInformativeSamples = [key.split("/")[-2] for key in list(mostInformativeSamples.keys())[ : args.n_labels]]
+        mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
         
         newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)
         newUnlabeledSubsetPath = unlabeledSubsetPath.rstrip(str(runId)) + str(runId+1)
@@ -206,8 +189,3 @@ if __name__ == '__main__':
         unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
         labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
-
-        del processor
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
