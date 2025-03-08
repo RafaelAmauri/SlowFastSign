@@ -10,3 +10,4 @@ dataset/*
 ckpt/*
 best_checkpoints/*
 pyrightconfig.json
+configs/*

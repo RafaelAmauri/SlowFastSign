@@ -148,30 +148,22 @@ if __name__ == '__main__':
         
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
-
         
-        # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset
-
-
+        
+        # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset.
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
         # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
         # and then the features for the videos in the unlabeled subset.
+        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
         
-        # Versão CORRETA.
-        # subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
-        # subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
-        
-        # Versão de DEBUG que usa os melhores pesos possíveis.
-        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/phoenix2014_dev_18.01_test_18.28.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
-
+        # These point to the folder containing the extracted features for each video
         labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
         unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
 
-
-        # Now we find out which are the most informative predictions made for the unlabeled set.
+        # Use the features to find the data points in the unlabeled set that are the most dissimilar to the ones in the labeled set.
         mostInformativeSamples = rankbyfeature.rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath)
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
