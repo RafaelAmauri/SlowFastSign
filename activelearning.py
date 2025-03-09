@@ -148,7 +148,10 @@ if __name__ == '__main__':
         
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
+        # Delete files with non-optimal training weights
+        subprocess.run(f"rm {labeledSubsetPath}/*.pt", shell=True, check=True)
         
+
         
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset.
         # Run preprocess routine for the unlabeled subset

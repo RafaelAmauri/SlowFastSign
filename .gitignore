@@ -9,5 +9,5 @@ ctcdecode/*
 dataset/*
 ckpt/*
 best_checkpoints/*
-pyrightconfig.json
 configs/*
+pyrightconfig.json
