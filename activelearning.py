@@ -149,7 +149,7 @@ if __name__ == '__main__':
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
         # Delete files with non-optimal training weights
-        subprocess.run(f"rm {args.work_dir}/{labeledSubsetPath}/*.pt", shell=True, check=True)
+        subprocess.run(f"rm {args.work_dir}/{labeledSubsetName}/dev*.pt", shell=True, check=True)
         
 
         
