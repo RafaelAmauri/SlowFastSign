@@ -40,40 +40,19 @@ class Decode(object):
             nn_output = nn_output.softmax(-1).cpu()
         vid_lgt = vid_lgt.cpu()
         beam_result, beam_scores, timesteps, out_seq_len = self.ctc_decoder.decode(nn_output, vid_lgt)
-        
         ret_list = []
-        probabilities = []  # List to store the probabilities
-        beam_confidences = []  # To store the beam scores (confidences for the chosen sequence)
-        
         for batch_idx in range(len(nn_output)):
             first_result = beam_result[batch_idx][0][:out_seq_len[batch_idx][0]]
-
-            # Remove repeated consecutive elements (this is a standard operation in CTC decoding)
             if len(first_result) != 0:
                 first_result = torch.stack([x[0] for x in groupby(first_result)])
-            
-            # Convert the result to class names using i2g_dict
-            decoded_result = [(self.i2g_dict[int(gloss_id)], idx) for idx, gloss_id in enumerate(first_result)]
+            ret_list.append([(self.i2g_dict[int(gloss_id)], idx) for idx, gloss_id in
+                             enumerate(first_result)])
 
-            # Now map probabilities for each class in the decoded result
-            class_probabilities = []
-            for idx, gloss_id in enumerate(first_result):
-                # Get the probability (confidence) for the class at this timestep
-                # gloss_id corresponds to the class index; get its probability from the softmax output
-                prob = nn_output[batch_idx, idx, gloss_id.item()].item()  # Get probability for the class
-                class_probabilities.append(prob)
+        # beam_scores is of shape [nBatch, nBeams]. The best beam is the the first one, the one in the 0th position.
+        # beam_scores[..., 0] gets the best beam (the one in the 0th position) at each batch.
+        beamConfidence = 1 / np.exp(beam_scores[..., 0] )
 
-            ret_list.append(decoded_result)
-            probabilities.append(class_probabilities)
-
-            #print(f"\nBEAMMMTODO = {beam_scores[batch_idx]}\nBEAMMM 0 = {beam_scores[batch_idx][0]}\nBEAMMM -1 = {beam_scores[batch_idx][-1]}")
-
-            # Extract the beam score for the chosen sequence (the first beam)
-            beam_score = beam_scores[batch_idx][0].item()  # The score for the first beam in the batch
-            beam_confidences.append(1/np.exp(beam_score))  # Convert log score to regular probability
-
-
-        return ret_list, probabilities, beam_confidences
+        return ret_list, beamConfidence
 
     def MaxDecode(self, nn_output, vid_lgt):
         index_list = torch.argmax(nn_output, axis=2)

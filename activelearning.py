@@ -159,8 +159,8 @@ if __name__ == '__main__':
 
         # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
         # and then the features for the videos in the unlabeled subset.
-        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test --test-inference", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
         
         # These point to the folder containing the extracted features for each video
         labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")

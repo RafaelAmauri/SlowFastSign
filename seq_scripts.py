@@ -131,12 +131,13 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
             os.symlink(src_path, tgt_path)
             return
 
+    confidenceByVideo = dict()
     for batch_idx, data in tqdm(enumerate(loader)):
         recoder.record_timer("device")
         vid = device.data_to_device(data[0])
         vid_lgt = device.data_to_device(data[1])
         with torch.no_grad():
-            ret_dict = model(vid, vid_lgt)
+            ret_dict = model(vid, vid_lgt)        
         if not os.path.exists(src_path):
             os.makedirs(src_path)
         start = 0
@@ -146,10 +147,12 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
             save_file = {
                 "label": data[2][start:end],
                 "features": ret_dict['framewise_features'][sample_idx][:, :vid_lgt[sample_idx]].T.cpu().detach(),
+                "confidence": ret_dict["predConf"].item()
             }
             np.save(filename, save_file)
             start = end
         assert end == len(data[2])
+    
     os.symlink(src_path, tgt_path)
 
 

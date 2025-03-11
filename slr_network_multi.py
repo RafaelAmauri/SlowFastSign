@@ -90,18 +90,18 @@ class SLRModel(nn.Module):
         lgt = conv1d_outputs['feat_len']
         
         outputs = []
-        confidences = [] # To store the confidences
-
         for i in range(len(conv1d_outputs['visual_feat'])):
             tm_outputs = self.temporal_model[i](conv1d_outputs['visual_feat'][i], lgt)
-            pred_logits = self.classifier[i](tm_outputs['predictions'])
             outputs.append(self.classifier[i](tm_outputs['predictions']))
 
-
-        pred, probabilitiesSents, beamScoreSents = (None, None, None) if self.training \
-            else self.decoder.decode(outputs[0], lgt, batch_first=False, probs=False)
-        conv_pred, probabilitiesConv, beamScoreConv = (None, None, None) if self.training \
-            else self.decoder.decode(conv1d_outputs['conv_logits'][0], lgt, batch_first=False, probs=False)
+        if self.training:
+            pred                = None
+            predConfidence      = None
+            conv_pred           = None
+            conv_predConfidence = None
+        else:
+            pred, predConfidence           = self.decoder.decode(outputs[0], lgt, batch_first=False, probs=False)
+            conv_pred, conv_predConfidence = self.decoder.decode(conv1d_outputs['conv_logits'][0], lgt, batch_first=False, probs=False)
 
         return {
             "framewise_features": framewise,
@@ -111,10 +111,8 @@ class SLRModel(nn.Module):
             "sequence_logits": outputs,
             "conv_sents": conv_pred,
             "recognized_sents": pred,
-            "confidences_sents": probabilitiesSents,
-            "confidences_conv": probabilitiesConv,
-            "beamScoreSents": beamScoreSents,
-            "beamScoreConvs": beamScoreConv
+            "predConf": predConfidence,
+            "conv_predConf": conv_predConfidence
         }
 
     def criterion_calculation(self, ret_dict, label, label_lgt):
