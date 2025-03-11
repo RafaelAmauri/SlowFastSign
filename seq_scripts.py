@@ -147,7 +147,7 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
             save_file = {
                 "label": data[2][start:end],
                 "features": ret_dict['framewise_features'][sample_idx][:, :vid_lgt[sample_idx]].T.cpu().detach(),
-                "confidence": ret_dict["predConf"].item()
+                "confidence": ret_dict["predConf"]
             }
             np.save(filename, save_file)
             start = end

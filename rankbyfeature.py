@@ -59,7 +59,7 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath):
             similarity = (unlabeledConfidence + cosineSimilarity(unlabeledFeature, labeledFeature)) / 2
             if similarity > similarityRank[nameUnlabeledFeature]:
                 similarityRank[nameUnlabeledFeature] = similarity
-
+    
     similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
 
     with open("SimilarityRank.json", "w") as filePointer:

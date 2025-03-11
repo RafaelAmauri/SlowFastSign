@@ -50,7 +50,8 @@ class Decode(object):
 
         # beam_scores is of shape [nBatch, nBeams]. The best beam is the the first one, the one in the 0th position.
         # beam_scores[..., 0] gets the best beam (the one in the 0th position) at each batch.
-        beamConfidence = 1 / np.exp(beam_scores[..., 0] )
+        beam_scores = beam_scores[..., 0].to(torch.float64)
+        beamConfidence = (1 / np.exp(beam_scores)).item()
 
         return ret_list, beamConfidence
 
