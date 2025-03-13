@@ -120,7 +120,7 @@ def copyDataset(datasetPath, newDatasetPath, copyAnnotations=False) -> None:
     # Copies {datasetPath}/phoenix-2014-multisigner/annotations/manual/[train,test,dev].corpus.csv -> {newDatasetPath}/phoenix-2014-multisigner/annotations/manual/[train,test,dev].corpus.csv
     if copyAnnotations:
         for split in ["train","test","dev"]:
-            originalAnnotationPath   = os.path.join(datasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
+            originalAnnotationPath   = os.path.join(datasetPath,    f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
             newDatasetAnnotationPath = os.path.join(newDatasetPath, f"phoenix-2014-multisigner/annotations/manual/{split}.corpus.csv")
             
             shutil.copy(originalAnnotationPath, newDatasetAnnotationPath)
