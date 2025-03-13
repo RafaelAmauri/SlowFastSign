@@ -1,8 +1,10 @@
 import numpy as np
 from collections import defaultdict
 
-def distance(vector1, vector2):
-    """Calculated the eucledian distance between two N-dimensional vectors.
+
+def distance(vector1, vector2) -> float:
+    """
+    Calculated the eucledian distance between two N-dimensional vectors.
 
     Args:
         vector1 (numpy.typing.ArrayLike): An N-dimensional vector
@@ -17,35 +19,62 @@ def distance(vector1, vector2):
     return np.sqrt(np.sum((vector1 - vector2) ** 2))
 
 
-def kCenter(points, nCenters):
-    """_summary_
+
+def kCenter(points, nCenters: int) -> dict:
+    """
+    Finds K different centers in an N-dimensional space.
+
+    This is an implementation of the Coreset Active Learning algorithm.
+    
+    
+    Coreset works as a farthest-first selection. We start with list of selected points that contains a single point.
+    We then add the point that is the farthest to this one to the list of selected points.
+    Next, we add the point that is the farthest to the two that exist on the list. We iteratively do this
+    until we have 'nCenters' points.
+    
 
     Args:
-        points (_type_): _description_
+        points (dict) : A dict of the points. They must all have the same dimensions.
+        nCenters (int): The number of centers. Must be lower than the number of points.
+
+    Returns:
+        dict: _description_
     """
-    firstPointName = list(points.keys())[3]
-    centers = {
-                firstPointName : points[firstPointName]
-            }
+    if nCenters > len(points):
+        raise ValueError(f"The number of centers must be lower than the number of points. N points: {len(points)}, N centers: {nCenters}")
+
+       
+    # Add the first point as the starting point for Coreset
+    firstPointName, firstPoint = list(points.items())[0]
+    selectedCenters = {
+                        firstPointName: firstPoint
+                    }
     
-    del points[firstPointName]
-
-    for i in range(1, nCenters):
-        lowestDistances = defaultdict(lambda: [float('inf'), -1])
+    
+    lowestDistanceFromCenters = defaultdict(lambda: [float('inf'), -1])
+    
+    for currentCenterIdx in range(nCenters):
+        _, center = selectedCenters[currentCenterIdx]
         
-        for centerName, center in centers.items():
-            
-            for candidateName, candidate in points.items():
-                d = distance(center, candidate)
+        for candidateName, candidate in points.items():
+            d = distance(center, candidate)
 
-                if d < lowestDistances[candidateName][0]:
-                    lowestDistances[candidateName] = [d, candidate] 
+            if d < lowestDistanceFromCenters[candidateName][0]:
+                lowestDistanceFromCenters[candidateName] = [d, candidate]
+    
+    
+        # Sort the distances from each point to the closest center
+        lowestDistanceFromCenters  = sorted(lowestDistanceFromCenters.items(), key=lambda x: x[1][0], reverse=True)
         
-        lowestDistances                = sorted(lowestDistances.items(), key=lambda x: x[1], reverse=True)
-        centers[lowestDistances[0][0]] = lowestDistances[0][1][1]
-        del points[lowestDistances[0][0]]
+        closestCandidateName, closestCandidate = points(lowestDistanceFromCenters[0][0])
 
-    return centers
+        # Add the farthest point to the list of centers and delete it from the list of points
+        selectedCenters[closestCandidateName] = closestCandidate
+        del points[closestCandidateName]
+
+
+    return selectedCenters
+
 
 points = {
             "1": np.asarray([1,   1,  1,  1]),
