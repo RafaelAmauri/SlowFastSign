@@ -61,8 +61,7 @@ def kCenter(points, nCenters: int) -> dict:
     # Select centers until we reach the desired number
     while len(selectedCenters) < nCenters:
         # Find the point with the maximum distance to its nearest center
-        nextCenterName = max(minDistances, key=minDistances.get)
-        
+        nextCenterName, _ = max(minDistances.items(), key=lambda x: x[1])
         nextCenter = remainingPoints[nextCenterName]
         selectedCenters[nextCenterName] = nextCenter
 
@@ -88,4 +87,4 @@ points = {
             "5": np.asarray([40, 40, 40, 40])
 }
 
-print(kCenter(points, 3))
+print(kCenter(points, 5))
