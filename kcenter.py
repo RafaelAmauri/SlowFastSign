@@ -27,15 +27,18 @@ def kCenter(points, nCenters: int) -> dict:
     This is an implementation of the Coreset Active Learning algorithm.
     
     
-    Coreset works as a farthest-first selection. We start with list of selected points that contains a single point.
-    We then add the point that is the farthest to this one to the list of selected points.
-    Next, we add the point that is the farthest to the two that exist on the list. We iteratively do this
-    until we have 'nCenters' points.
+    Coreset works as a farthest-first selection. 
+    
+    The algorithm:
+      1. Picks an arbitrary starting point.
+      2. For each remaining point, calculates its distance to the nearest selected center.
+      3. Selects the point with the maximum minimum distance.
+      4. Repeats until k centers are chosen.
     
 
     Args:
-        points (dict) : A dict of the points. They must all have the same dimensions.
-        nCenters (int): The number of centers. Must be lower than the number of points.
+        points (dict) : A dictionary of points, each as a numpy array.
+        nCenters (int): The number of centers (must be lower than or equal to the number of points).
 
     Returns:
         dict: _description_
@@ -43,34 +46,35 @@ def kCenter(points, nCenters: int) -> dict:
     if nCenters > len(points):
         raise ValueError(f"The number of centers must be lower than the number of points. N points: {len(points)}, N centers: {nCenters}")
 
-       
-    # Add the first point as the starting point for Coreset
-    firstPointName, firstPoint = list(points.items())[0]
-    selectedCenters = {
-                        firstPointName: firstPoint
-                    }
+    remainingPoints = points.copy()
+    selectedCenters = {}
     
+    # Pick an arbitrary starting point (first in the dictionary)
+    firstPointName, firstPoint = next(iter(remainingPoints.items()))
+    selectedCenters[firstPointName] = firstPoint
+    del remainingPoints[firstPointName]
     
-    lowestDistanceFromCenters = defaultdict(lambda: [float('inf'), -1])
-    
-    for currentCenterIdx in range(nCenters):
-        _, center = selectedCenters[currentCenterIdx]
-        
-        for candidateName, candidate in points.items():
-            d = distance(center, candidate)
 
-            if d < lowestDistanceFromCenters[candidateName][0]:
-                lowestDistanceFromCenters[candidateName] = [d, candidate]
+    # Initialize minimum distances for remaining points from the first center
+    minDistances = {name: distance(firstPoint, i) for name, i in remainingPoints.items()}
     
-    
-        # Sort the distances from each point to the closest center
-        lowestDistanceFromCenters  = sorted(lowestDistanceFromCenters.items(), key=lambda x: x[1][0], reverse=True)
+    # Select centers until we reach the desired number
+    while len(selectedCenters) < nCenters:
+        # Find the point with the maximum distance to its nearest center
+        nextCenterName = max(minDistances, key=minDistances.get)
         
-        closestCandidateName, closestCandidate = points(lowestDistanceFromCenters[0][0])
+        nextCenter = remainingPoints[nextCenterName]
+        selectedCenters[nextCenterName] = nextCenter
 
-        # Add the farthest point to the list of centers and delete it from the list of points
-        selectedCenters[closestCandidateName] = closestCandidate
-        del points[closestCandidateName]
+        # Remove the selected point from remaining points and min_distances
+        del remainingPoints[nextCenterName]
+        del minDistances[nextCenterName]
+
+        # Update the minimum distances for the remaining points
+        for name, pt in remainingPoints.items():
+            d = distance(nextCenter, pt)
+            if d < minDistances[name]:
+                minDistances[name] = d
 
 
     return selectedCenters
