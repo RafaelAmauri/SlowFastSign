@@ -23,8 +23,7 @@ import yaml
 
 from active_learning_modules.dataset_utils import splitDataset, copyDataset
 from active_learning_modules.parser import makeParser, validateParams
-
-import rankbyfeature
+from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures
 
 
 def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
@@ -94,12 +93,13 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
         newlyLabeledData        = []
         remainingUnlabeledData  = unlabeledPoolData.copy()
         
-        for unlabeledSample in unlabeledPoolData:
-            unlabeledFolderName = unlabeledSample.split("|")[0]
+        for sampleName in selectedSamples:
+            for unlabeledSample in unlabeledPoolData:
+                unlabeledFolderName = unlabeledSample.split("|")[0]
 
-            if unlabeledFolderName in selectedSamples:
-                newlyLabeledData.append(unlabeledSample)
-                remainingUnlabeledData.remove(unlabeledSample)
+                if sampleName == unlabeledFolderName:
+                    newlyLabeledData.append(unlabeledSample)
+                    remainingUnlabeledData.remove(unlabeledSample)
 
     
     # When we 'label' an instance, we have to remove it from the unlabeled pool. It is easier to just delete the unlabeledPool file and write what we want
@@ -151,23 +151,31 @@ if __name__ == '__main__':
         # Delete files with non-optimal training weights
         subprocess.run(f"rm {args.work_dir}/{labeledSubsetName}/dev*.pt", shell=True, check=True)
         
-
-        
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset.
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
         # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
         # and then the features for the videos in the unlabeled subset.
+        '''
+        VERSAO CORRETA
         subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
         subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+        '''
+
+        '''
+        VERSAO DEBUG
+        '''
+        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
         
+
         # These point to the folder containing the extracted features for each video
         labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
         unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
 
         # Use the features to find the data points in the unlabeled set that are the most dissimilar to the ones in the labeled set.
-        mostInformativeSamples = rankbyfeature.rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath)
+        mostInformativeSamples = rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, f"{args.work_dir}/{labeledSubsetName}/")
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]

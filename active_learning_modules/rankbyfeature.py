@@ -5,6 +5,8 @@ import os
 from collections import defaultdict
 from tqdm import tqdm
 
+from active_learning_modules.kcenter import kCenter
+
 
 def cosineSimilarity(feature1, feature2):
     """
@@ -28,7 +30,7 @@ def cosineSimilarity(feature1, feature2):
     return np.mean(maxPerFrame).astype(float)
 
 
-def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath):
+def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFolder):
     featuresLabeledSet   = dict()
     featuresUnlabeledSet = dict()
     similarityRank       = defaultdict(lambda: 0)
@@ -62,7 +64,7 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath):
     
     similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
 
-    with open("SimilarityRank.json", "w") as filePointer:
+    with open(f"{saveFolder}/SimilarityRank.json", "w") as filePointer:
         json.dump(similarityRank, filePointer, indent=4)
 
     return similarityRank

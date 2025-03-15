@@ -78,7 +78,7 @@ def kCenter(points, nCenters: int) -> dict:
 
     return selectedCenters
 
-
+'''
 points = {
             "1": np.asarray([1,   1,  1,  1]),
             "2": np.asarray([3,   3,  3,  3]),
@@ -88,3 +88,4 @@ points = {
 }
 
 print(kCenter(points, 5))
+'''
