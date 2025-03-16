@@ -64,7 +64,8 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFol
     
     similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
 
-    with open(f"{saveFolder}/SimilarityRank.json", "w") as filePointer:
+    savePath = os.path.join(saveFolder, "SimilarityRank.json")
+    with open(savePath, "w") as filePointer:
         json.dump(similarityRank, filePointer, indent=4)
 
     return similarityRank
