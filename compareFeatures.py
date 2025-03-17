@@ -34,7 +34,7 @@ def cosineSimilarity(feature1, feature2):
     return np.mean(maxPerFrame).astype(float)
 
 
-def rankSimiliratyByFeatures(featuresLabeledSet, featuresUnlabeledSet, saveFolder, strategy, nLabelings):
+def rankSimiliratyByFeatures(featuresLabeledSet, featuresUnlabeledSet, strategy, nLabelings, medianConf):
     similarityRank       = defaultdict(lambda: 0)
 
     if strategy == "cosine":
@@ -47,22 +47,18 @@ def rankSimiliratyByFeatures(featuresLabeledSet, featuresUnlabeledSet, saveFolde
                 # The similarity is the confidence score + the cosine similarity. This aggregates uncertainty and
                 # representativeness into a single score!
 
-                similarity = (unlabeledConfidence + cosineSimilarity(unlabeledFeature, labeledFeature)) / 2
+                similarity = ( 1 - unlabeledConfidence + cosineSimilarity(unlabeledFeature, labeledFeature)) / 2
                 if similarity > similarityRank[nameUnlabeledFeature]:
                     similarityRank[nameUnlabeledFeature] = similarity
         
-        similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
-
-        savePath = os.path.join(saveFolder, "SimilarityRank.json")
-        with open(savePath, "w") as filePointer:
-            json.dump(similarityRank, filePointer, indent=4)
+        similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1], reverse=True))
 
         return similarityRank
     
     elif strategy == "kcenter":
         newFeatUnlabeledSet = dict()
         for idx, (feature, conf) in featuresUnlabeledSet.items():
-            if conf < 0.5:
+            if conf < medianConf:
                 newFeatUnlabeledSet[idx] = feature
 
         return kCenter(newFeatUnlabeledSet, nLabelings)
@@ -75,11 +71,12 @@ yAxisLimit = 400
 nLabeledSamples    = 5
 nUnlabeledSamples  = 1500
 nFeatureDimensions = 2
-nLabelings         = 30
+nLabelings         = 150
 strategy           = "kcenter" # Can be "cosine" or "kcenter"
 
 
 unlabeledConfidences = np.asarray([ random.random() for i in range(nUnlabeledSamples)])
+medianConf           = np.median(unlabeledConfidences)
 
 labeledFeatures   = np.asarray([[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nLabeledSamples)])
 unlabeledFeatures = np.asarray([[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nUnlabeledSamples)])
@@ -89,10 +86,10 @@ featuresUnlabeledSet = { i : [unlabeledFeatures[i], unlabeledConfidences[i]] for
 fig, axs = plt.subplots(2, 2, figsize=(12, 6))
 
 similarity           = rankSimiliratyByFeatures(labeledFeatures, 
-                                                featuresUnlabeledSet, 
-                                                "/tmp/navegador", 
+                                                featuresUnlabeledSet,
                                                 strategy,
-                                                nLabelings)
+                                                nLabelings,
+                                                medianConf)
 
 sc1 = axs[0][0].scatter(unlabeledFeatures[..., 0], unlabeledFeatures[..., 1], c=unlabeledConfidences, vmin=0, vmax=1, cmap='cool', s=100, marker='s')
 axs[0][0].set_title('Unlabeled Set')

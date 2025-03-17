@@ -174,8 +174,20 @@ if __name__ == '__main__':
         labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
         unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
 
+        '''
+        TODO
+        Fix:
+          File "/workspace/SlowFastSign/active_learning_modules/kcenter.py", line 17, in distance
+            raise ValueError(f"Vectors must have the same shape! Detected shapes: V1 = {vector1.shape}, V2 = {vector2.shape}")
+            ValueError: Vectors must have the same shape! Detected shapes: V1 = (140, 2304), V2 = (180, 2304)
+        '''
+
         # Use the features to find the data points in the unlabeled set that are the most dissimilar to the ones in the labeled set.
-        mostInformativeSamples = rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, f"{args.work_dir}/{labeledSubsetName}/")
+        mostInformativeSamples = rankSimiliratyByFeatures(labeledFeaturesPath, 
+                                                          unlabeledFeaturesPath, 
+                                                          f"{args.work_dir}/{labeledSubsetName}/",
+                                                          "kcenter",
+                                                          args.n_labels)
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
         mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
