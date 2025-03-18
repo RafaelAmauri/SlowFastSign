@@ -111,14 +111,27 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFol
     for file in os.listdir(labeledFeaturesPath):
         filePath    = os.path.join(labeledFeaturesPath, file)
         fileContent = np.load(filePath, allow_pickle=True)
-        featuresLabeledSet[filePath] = fileContent.item()['features'].numpy()
+        
+        currentFeature = fileContent.item()['features'].numpy()
+        currentFeature = np.median(currentFeature, axis=0)
+        featuresLabeledSet[filePath] = currentFeature
+
 
     # Get the file paths for the features in the unlabeled set
     for file in os.listdir(unlabeledFeaturesPath):
         filePath    = os.path.join(unlabeledFeaturesPath, file)
         fileContent = np.load(filePath, allow_pickle=True)
-        featuresUnlabeledSet[filePath] = (fileContent.item()['features'].numpy(), fileContent.item()['confidence'])
-        medianConf = np.median(fileContent.item()['confidence'])
+        
+        currentFeature = fileContent.item()['features'].numpy()
+        print(currentFeature.shape)
+        currentFeature = np.median(currentFeature, axis=0)
+        print(currentFeature.shape)
+
+        featuresUnlabeledSet[filePath] = (currentFeature, fileContent.item()['confidence'])
+    
+
+    # TODO Find out a way to get the median of all confidences
+    medianConf = 0.5
 
 
     if strategy == "cosine":
