@@ -113,7 +113,7 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFol
         fileContent = np.load(filePath, allow_pickle=True)
         
         currentFeature = fileContent.item()['features'].numpy()
-        currentFeature = np.median(currentFeature, axis=0)
+        currentFeature = np.mean(currentFeature, axis=0)
         featuresLabeledSet[filePath] = currentFeature
 
 
@@ -124,7 +124,7 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFol
         
         currentFeature = fileContent.item()['features'].numpy()
         print(currentFeature.shape)
-        currentFeature = np.median(currentFeature, axis=0)
+        currentFeature = np.mean(currentFeature, axis=0)
         print(currentFeature.shape)
 
         featuresUnlabeledSet[filePath] = (currentFeature, fileContent.item()['confidence'])
@@ -164,6 +164,8 @@ def rankSimiliratyByFeatures(labeledFeaturesPath, unlabeledFeaturesPath, saveFol
                 newFeatUnlabeledSet[idx] = feature
 
         similarityRank = kCenter(newFeatUnlabeledSet, nLabelings)
+
+    similarityRank = { i: np.nan for i in similarityRank.keys() }
 
     savePath = os.path.join(saveFolder, "SimilarityRank.json")
     with open(savePath, "w") as filePointer:
