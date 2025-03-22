@@ -31,7 +31,6 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         fileContent = np.load(filePath, allow_pickle=True)
         
         currentFeature = fileContent.item()['features'].numpy()
-        # TODO WTF IS THIS
         currentFeature = np.mean(currentFeature, axis=0)
 
         featuresLabeledSet[filePath] = currentFeature
@@ -48,7 +47,6 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         confidences.append(currentConfidence)
 
     # Get the median confidence
-    confidences      = np.asarray(confidences)
     medianConfidence = np.median(confidences)
 
 
@@ -61,10 +59,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentConfidence = fileContent.item()['confidence']
 
         if currentConfidence < medianConfidence:
-            # TODO WTF IS THIS
-            print(currentFeature.shape)
             currentFeature = np.mean(currentFeature, axis=0)
-            print(currentFeature.shape)
 
             featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
 
@@ -94,7 +89,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
     if strategy == "cosine":
         # For every sample in the unlabeled set, compare it to every sample in the labeled set and save the highest similarity
         # value achieved by it in 'similarityRank'
-        for nameUnlabeledFeature, (unlabeledFeature, unlabeledConfidence) in tqdm(featuresUnlabeledSet.items()):
+        for nameUnlabeledFeature, (unlabeledFeature, _) in tqdm(featuresUnlabeledSet.items()):
             # Strip the string and the _features.npy suffix to get only the name of the video.
             # The processed string will be something like "01April_2010_Thursday_heute_default-3"
             nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
@@ -109,20 +104,18 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
         
 
         similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
-5000
 
 
     elif strategy == "kcenter":
         newFeatUnlabeledSet = dict()
-        for nameUnlabeledFeature, (unlabeledFeature, unlabeledConfidence) in tqdm(featuresUnlabeledSet.items()):
+        for nameUnlabeledFeature, (unlabeledFeature, _) in tqdm(featuresUnlabeledSet.items()):
             # Strip the string and the _features.npy suffix to get only the name of the video.
             # The processed string will be something like "01April_2010_Thursday_heute_default-3"
             nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
-            newFeatUnlabeledSet[nameUnl5000abeledFeature] = unlabeledFeature
+            newFeatUnlabeledSet[nameUnlabeledFeature] = unlabeledFeature
 
 
         similarityRank = kCenter(newFeatUnlabeledSet, nLabelings)
-        print(similarityRank)
 
 
     similarityRank = { i: np.nan for i in similarityRank.keys() }

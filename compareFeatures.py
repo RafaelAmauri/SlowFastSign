@@ -11,11 +11,11 @@ from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures
 xAxisLimit = 400
 yAxisLimit = 400
 
-nLabeledSamples    = 5
-nUnlabeledSamples  = 5
+nLabeledSamples    = 10
+nUnlabeledSamples  = 2000
 nFeatureDimensions = 2
-nFrames            = 1
-nLabelings         = 2
+nFrames            = 52
+nLabelings         = 50
 strategy           = "kcenter" # Can be "cosine" or "kcenter"
 
 
@@ -26,13 +26,16 @@ unlabeledConfidences = np.asarray([ random.random() for i in range(nUnlabeledSam
 labeledFeatures   = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nLabeledSamples)])
 unlabeledFeatures = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nUnlabeledSamples)])
 
+labeledFeatures   = np.mean(labeledFeatures  , axis=1)
+unlabeledFeatures = np.mean(unlabeledFeatures, axis=1)
+
+
 # Now we "fake" a call to active_learning_modules.rankbyfeature.readFeaturesFromFile
 # This function would return our features as a dict, where the keys are the names of the videos and the values
 # are the features.
 featuresLabeledSet   = { f"/tmp/navegador/{i}" : labeledFeatures[i]                              for i in range(nLabeledSamples)                                                                }
 featuresUnlabeledSet = { f"/tmp/navegador/{i}" : [unlabeledFeatures[i], unlabeledConfidences[i]] for i in range(nUnlabeledSamples) if unlabeledConfidences[i] < np.median(unlabeledConfidences) }
 
-print(featuresUnlabeledSet)
 
 fig, axs = plt.subplots(2, 2, figsize=(12, 6))
 
@@ -66,12 +69,12 @@ addedSamples = 0
 for idx, conf in similarity.items():
     if addedSamples < nLabelings:
         idx = f"/tmp/navegador/{idx}"
-
-        x    = featuresUnlabeledSet[idx][0][0][0]
-        y    = featuresUnlabeledSet[idx][0][0][1]
+        
+        x    = featuresUnlabeledSet[idx][0][0]
+        y    = featuresUnlabeledSet[idx][0][1]
         conf = featuresUnlabeledSet[idx][1]
         
-        xy = np.asarray([[x, y]])
+        xy = np.asarray([x, y])
         xy = np.expand_dims(xy, axis=0)
 
         labeledFeatures = np.concatenate([labeledFeatures, xy], axis=0)
