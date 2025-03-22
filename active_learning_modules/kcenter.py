@@ -50,10 +50,11 @@ def kCenter(points, nCenters: int) -> dict:
     selectedCenters = {}
     
     # Pick an arbitrary starting point (first in the dictionary)
-    firstPointName, firstPoint = next(iter(remainingPoints.items()))
-    selectedCenters[firstPointName] = firstPoint
-    del remainingPoints[firstPointName]
+    _, firstPoint = next(iter(remainingPoints.items()))
     
+    # Pick an arbitrary starting point (0, 0)
+    selectedCenters["origin"] = np.zeros_like(firstPoint)
+    firstPoint = selectedCenters["origin"]
 
     # Initialize minimum distances for remaining points from the first center
     minDistances = {name: distance(firstPoint, i) for name, i in remainingPoints.items()}
@@ -61,9 +62,9 @@ def kCenter(points, nCenters: int) -> dict:
     # Select centers until we reach the desired number
     while len(selectedCenters) < nCenters:
         # Find the point with the maximum distance to its nearest center
-        nextCenterName, _ = max(minDistances.items(), key=lambda x: x[1])
-        nextCenter        = remainingPoints[nextCenterName]
-        selectedCenters[nextCenterName] = nextCenter
+        nextCenterName, nextCenterDistance = max(minDistances.items(), key=lambda x: x[1])
+        nextCenterCoordinates              = remainingPoints[nextCenterName]
+        selectedCenters[nextCenterName]    = [nextCenterCoordinates, nextCenterDistance]
 
         # Remove the selected point from remaining points and min_distances
         del remainingPoints[nextCenterName]
@@ -71,11 +72,12 @@ def kCenter(points, nCenters: int) -> dict:
 
         # Update the minimum distances for the remaining points
         for name, pt in remainingPoints.items():
-            d = distance(nextCenter, pt)
+            d = distance(nextCenterCoordinates, pt)
             if d < minDistances[name]:
                 minDistances[name] = d
 
 
+    del selectedCenters["origin"]
     return selectedCenters
 
 '''
