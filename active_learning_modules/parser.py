@@ -26,7 +26,7 @@ def makeParser():
     parser.add_argument('-w', '--work-dir', type=str, required=True,
                         help="Where to save the outputs for inference and training.")
     
-    parser.add_argument('--custom-name', type=str, required=True,
+    parser.add_argument('-c', '--custom-name', type=str, required=True,
                         help="A custom name for the experiment")
 
     parser.add_argument('--device', type=str, required=False, default=0,
@@ -67,3 +67,6 @@ def validateParams(args) -> None:
         raise FileExistsError(f"{datasetParentFolder}/{datasetName}-unlabeled already exists! Ideally this folder should be created by this program at a later point, meaning \
                               this is probably not your first time running this program. For safety reasons, this program will not continue and I \
                               ask you to deal with this before running the program again :)")
+    
+    if os.path.exists(f"features"):
+        raise FileExistsError(f"'features' folder already exists! This could lead to problems when extracting features, please make sure to delete it before running the code :)")
