@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import random
 
 import numpy as np
+import sklearn
+import sklearn.cluster
 
 from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures
 
@@ -11,11 +13,11 @@ from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures
 xAxisLimit = 400
 yAxisLimit = 400
 
-nLabeledSamples    = 10
+nLabeledSamples    = 1000
 nUnlabeledSamples  = 2000
 nFeatureDimensions = 2
 nFrames            = 52
-nLabelings         = 50
+nLabelings         = 2
 strategy           = "kcenter" # Can be "cosine" or "kcenter"
 
 
@@ -36,6 +38,21 @@ unlabeledFeatures = np.mean(unlabeledFeatures, axis=1)
 featuresLabeledSet   = { f"/tmp/navegador/{i}" : labeledFeatures[i]                              for i in range(nLabeledSamples)                                                                }
 featuresUnlabeledSet = { f"/tmp/navegador/{i}" : [unlabeledFeatures[i], unlabeledConfidences[i]] for i in range(nUnlabeledSamples) if unlabeledConfidences[i] < np.median(unlabeledConfidences) }
 
+x = unlabeledFeatures[..., 0]
+y = unlabeledFeatures[..., 1]
+
+kmeans = sklearn.cluster.KMeans(n_clusters=32, random_state=0, n_init='auto')
+kmeans.fit(unlabeledFeatures)
+
+cmap = plt.cm.get_cmap('hsv', 32)
+
+plt.scatter(x, y, c=kmeans.labels_, cmap=cmap)
+
+plt.xticks([])  # Remove word name for more readability
+plt.tight_layout()
+plt.show()
+
+raise Exception
 
 fig, axs = plt.subplots(2, 2, figsize=(12, 6))
 
@@ -43,7 +60,7 @@ fig, axs = plt.subplots(2, 2, figsize=(12, 6))
 similarity           = rankSimiliratyByFeatures(featuresLabeledSet, 
                                                 featuresUnlabeledSet,
                                                 strategy,
-                                                "/tmp/navegador",
+                                                "/tmp/navegador/",
                                                 nLabelings)
 
 
