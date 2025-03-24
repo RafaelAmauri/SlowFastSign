@@ -131,7 +131,7 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
             os.symlink(src_path, tgt_path)
             return
 
-    confidenceByVideo = dict()
+
     for batch_idx, data in tqdm(enumerate(loader)):
         recoder.record_timer("device")
         vid = device.data_to_device(data[0])
@@ -146,7 +146,7 @@ def seq_feature_generation(loader, model, device, mode, work_dir, recoder):
             filename = f"{src_path}/{data[-1][sample_idx].split('|')[0]}_features.npy"
             save_file = {
                 "label": data[2][start:end],
-                "features": ret_dict['framewise_features'][sample_idx][:, :vid_lgt[sample_idx]].T.cpu().detach(),
+                "features": ret_dict["visual_features"][0].squeeze(1).cpu().detach(), # Versão antiga era ret_dict['framewise_features'][sample_idx][:, :vid_lgt[sample_idx]].T.cpu().detach(), pega no https://github.com/VIPL-SLP/VAC_CSLR/blob/71f3e0334fbc8cecc7ce9816ec69781068abaac0/seq_scripts.py#L123
                 "confidence": ret_dict["predConf"]
             }
             np.save(filename, save_file)

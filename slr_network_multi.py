@@ -12,6 +12,7 @@ from modules import BiLSTMLayer, TemporalSlowFastFuse
 import slowfast_modules.slowfast as slowfast
 import importlib
 
+
 class Identity(nn.Module):
     def __init__(self):
         super(Identity, self).__init__()
@@ -103,6 +104,11 @@ class SLRModel(nn.Module):
             pred, predConfidence           = self.decoder.decode(outputs[0], lgt, batch_first=False, probs=False)
             conv_pred, conv_predConfidence = self.decoder.decode(conv1d_outputs['conv_logits'][0], lgt, batch_first=False, probs=False)
 
+        ## From looking at the criterion_calculation() function, 
+        # conv1d_outputs['visual_feat'][0] appears to be the Fused features (slow + fast)
+        # conv1d_outputs['visual_feat'][1] appears to be the Slow features
+        # conv1d_outputs['visual_feat'][2] appears to be the Fast features
+        
         return {
             "framewise_features": framewise,
             "visual_features": conv1d_outputs['visual_feat'],
@@ -114,6 +120,7 @@ class SLRModel(nn.Module):
             "predConf": predConfidence,
             "conv_predConf": conv_predConfidence
         }
+
 
     def criterion_calculation(self, ret_dict, label, label_lgt):
         loss = 0
