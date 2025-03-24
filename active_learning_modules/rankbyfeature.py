@@ -58,7 +58,9 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentFeature    = fileContent.item()['features'].numpy()
         currentConfidence = fileContent.item()['confidence']
 
-        if currentConfidence < medianConfidence:
+        ## TODO
+        # Aqui era if currentConfidence < medianConfidence, troquei pra True pra testar se só a métrica de diversidade consegue selecionar bem
+        if True:
             currentFeature = np.mean(currentFeature, axis=0)
 
             featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
@@ -118,8 +120,8 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
         similarityRank = kCenter(newFeatUnlabeledSet, nLabelings)
 
 
-    similarityRank = { i: np.nan for i in similarityRank.keys() }
-
+    similarityRank = { k: float(v[1]) for k, v in similarityRank.items() }
+    
 
     # Save the similarity ranking
     savePath = os.path.join(saveFolder, "SimilarityRank.json")
