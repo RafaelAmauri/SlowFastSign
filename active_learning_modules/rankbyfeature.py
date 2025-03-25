@@ -58,9 +58,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentFeature    = fileContent.item()['features'].numpy()
         currentConfidence = fileContent.item()['confidence']
 
-        ## TODO
-        # Aqui era if currentConfidence < medianConfidence, troquei pra True pra testar se só a métrica de diversidade consegue selecionar bem
-        if True:
+        if currentConfidence < medianConfidence:
             currentFeature = np.mean(currentFeature, axis=0)
 
             featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
