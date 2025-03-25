@@ -82,13 +82,15 @@ def labelDataPoints(labeledSubsetPath: str, unlabeledSubsetPath: str, nSamplesTo
         with open(labeledPool, "w") as f:
             f.writelines(header) # Write the header because since this is the initial labeling, the labeledPool file is guaranteed to be empty!
 
+    # If there are no selectedSamples, we must randomly add data to the data pool.
+    if len(selectedSamples) == 0:
         # The operation for the first labeling loop is the following: randomly select a couple of samples from the unlabeled pool. These will be moved to the labeled pool.
         random.shuffle(unlabeledPoolData)
 
         newlyLabeledData        = unlabeledPoolData[0 : nSamplesToLabel]
         remainingUnlabeledData  = unlabeledPoolData[nSamplesToLabel : ]
     
-    # If it is not the first labeling loop, simply pick the selected samples from the unlabeled pool.
+    # But, if selectedSamples contains data, we simply pick these selected samples from the unlabeled pool.
     else:
         newlyLabeledData        = []
         remainingUnlabeledData  = unlabeledPoolData.copy()
@@ -118,6 +120,9 @@ if __name__ == '__main__':
     args = makeParser().parse_args()
     validateParams(args)
     
+    STRATEGY = "random"
+    mostInformativeSamples = []
+
     runId = 1
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, args.custom_name, runId)
@@ -127,7 +132,7 @@ if __name__ == '__main__':
 
     # Now we do our first labeling loop. This will create a train.corpus.csv file for the labeled subset.
     labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=[], isFirstLabelingLoop=True)
-    
+
     for runId in range(1, args.n_runs+1):
         print(f"Starting Run {runId} now....")
         
@@ -155,39 +160,40 @@ if __name__ == '__main__':
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
-        # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
-        # and then the features for the videos in the unlabeled subset.
-        '''
-        VERSAO CORRETA
-        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
-        '''
+        if STRATEGY == "active":
+            # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
+            # and then the features for the videos in the unlabeled subset.
+            
+            # VERSAO CORRETA
+            subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+            subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+            
 
-        '''
-        VERSAO DEBUG
-        '''
-        subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
-        subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
-        
+            
+            #VERSAO DEBUG
+            
+            # subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+            # subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+            
 
-        # These point to the folder containing the extracted features for each video
-        labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
-        unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
-
-
-        # Read the extracted features for all samples in the labeled and unlabeled sets
-        featuresLabeledSet, featuresUnlabeledSet = readFeaturesFromFile(labeledFeaturesPath, unlabeledFeaturesPath)
-
-        # Use the features to find the data points in the unlabeled set that are the most dissimilar to the ones in the labeled set.
-        mostInformativeSamples = rankSimiliratyByFeatures(featuresLabeledSet, 
-                                                          featuresUnlabeledSet,
-                                                          "kcenter",
-                                                          f"{args.work_dir}/{labeledSubsetName}/",
-                                                          args.n_labels)
+            # These point to the folder containing the extracted features for each video
+            labeledFeaturesPath   = os.path.join(f"{args.work_dir}/{labeledSubsetName}-features",   "train")
+            unlabeledFeaturesPath = os.path.join(f"{args.work_dir}/{unlabeledSubsetName}-features", "test")
 
 
-        # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
-        mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
+            # Read the extracted features for all samples in the labeled and unlabeled sets
+            featuresLabeledSet, featuresUnlabeledSet = readFeaturesFromFile(labeledFeaturesPath, unlabeledFeaturesPath)
+
+            # Use the features to find the data points in the unlabeled set that are the most dissimilar to the ones in the labeled set.
+            mostInformativeSamples = rankSimiliratyByFeatures(featuresLabeledSet, 
+                                                            featuresUnlabeledSet,
+                                                            "kcenter",
+                                                            f"{args.work_dir}/{labeledSubsetName}/",
+                                                            args.n_labels)
+
+
+            # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
+            mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
         
         newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)
         newUnlabeledSubsetPath = unlabeledSubsetPath.rstrip(str(runId)) + str(runId+1)
