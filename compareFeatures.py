@@ -13,12 +13,12 @@ from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures
 xAxisLimit = 400
 yAxisLimit = 400
 
-nLabeledSamples    = 1000
+nLabeledSamples    = 5
 nUnlabeledSamples  = 2000
 nFeatureDimensions = 2
-nFrames            = 52
-nLabelings         = 2
-strategy           = "kcenter" # Can be "cosine" or "kcenter"
+nFrames            = 1
+nLabelings         = 60
+strategy           = "cosine" # Can be "cosine" or "kcenter"
 
 
 # Generate a bunch of unlabeled Confidences
@@ -28,8 +28,9 @@ unlabeledConfidences = np.asarray([ random.random() for i in range(nUnlabeledSam
 labeledFeatures   = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nLabeledSamples)])
 unlabeledFeatures = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nUnlabeledSamples)])
 
-labeledFeatures   = np.mean(labeledFeatures  , axis=1)
-unlabeledFeatures = np.mean(unlabeledFeatures, axis=1)
+if strategy == "kcenter":
+    labeledFeatures   = np.mean(labeledFeatures  , axis=1)
+    unlabeledFeatures = np.mean(unlabeledFeatures, axis=1)
 
 
 # Now we "fake" a call to active_learning_modules.rankbyfeature.readFeaturesFromFile
@@ -38,21 +39,7 @@ unlabeledFeatures = np.mean(unlabeledFeatures, axis=1)
 featuresLabeledSet   = { f"/tmp/navegador/{i}" : labeledFeatures[i]                              for i in range(nLabeledSamples)                                                                }
 featuresUnlabeledSet = { f"/tmp/navegador/{i}" : [unlabeledFeatures[i], unlabeledConfidences[i]] for i in range(nUnlabeledSamples) if unlabeledConfidences[i] < np.median(unlabeledConfidences) }
 
-x = unlabeledFeatures[..., 0]
-y = unlabeledFeatures[..., 1]
 
-kmeans = sklearn.cluster.KMeans(n_clusters=32, random_state=0, n_init='auto')
-kmeans.fit(unlabeledFeatures)
-
-cmap = plt.cm.get_cmap('hsv', 32)
-
-plt.scatter(x, y, c=kmeans.labels_, cmap=cmap)
-
-plt.xticks([])  # Remove word name for more readability
-plt.tight_layout()
-plt.show()
-
-raise Exception
 
 fig, axs = plt.subplots(2, 2, figsize=(12, 6))
 
@@ -87,15 +74,23 @@ for idx, conf in similarity.items():
     if addedSamples < nLabelings:
         idx = f"/tmp/navegador/{idx}"
         
-        x    = featuresUnlabeledSet[idx][0][0]
-        y    = featuresUnlabeledSet[idx][0][1]
-        conf = featuresUnlabeledSet[idx][1]
+        if strategy == "kcenter":
+            x    = featuresUnlabeledSet[idx][0][0]
+            y    = featuresUnlabeledSet[idx][0][1]
+            conf = featuresUnlabeledSet[idx][1]
+            xy   = np.asarray([x, y])
+            xy   = np.expand_dims(xy, axis=0)
+            labeledFeatures = np.concatenate([labeledFeatures, xy], axis=0)
+
+        else:
+            x    = featuresUnlabeledSet[idx][0][0][0]
+            y    = featuresUnlabeledSet[idx][0][0][1]
+            conf = featuresUnlabeledSet[idx][1]
+            xy   = np.asarray([x, y])
+            xy   = np.expand_dims(xy, axis=0)
+            labeledFeatures = np.concatenate([labeledFeatures, [xy]], axis=0)
         
-        xy = np.asarray([x, y])
-        xy = np.expand_dims(xy, axis=0)
-
-        labeledFeatures = np.concatenate([labeledFeatures, xy], axis=0)
-
+        
         sc3 = axs[1][0].scatter(x, y, c=conf, vmin=0, vmax=1, cmap='cool', s=100, marker='s')
         addedSamples += 1
 

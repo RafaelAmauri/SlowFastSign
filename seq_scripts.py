@@ -18,15 +18,23 @@ def seq_train(loader, model, optimizer, device, epoch_idx, recoder):
     scaler = GradScaler()
     tqdm_loader = tqdm(loader, ncols=100)
     nan = 0
+
+    # Zero the gradients
+    optimizer.zero_grad()
+    
     for batch_idx, data in enumerate(tqdm_loader):
         vid = device.data_to_device(data[0])
         vid_lgt = device.data_to_device(data[1])
         label = device.data_to_device(data[2])
         label_lgt = device.data_to_device(data[3])
-        optimizer.zero_grad()
+
+        # Forward pass on the data
         with autocast():
             ret_dict = model(vid, vid_lgt, label=label, label_lgt=label_lgt)
             loss = model.criterion_calculation(ret_dict, label, label_lgt)
+            
+        
+        # Check for NaN
         if np.isinf(loss.item()) or np.isnan(loss.item()):
             print('loss is nan')
             print(str(data[1])+'  frames')
@@ -37,11 +45,21 @@ def seq_train(loader, model, optimizer, device, epoch_idx, recoder):
             if nan == 30:
                 exit()
             continue
+        
+
+        # Runs backpropagation on the scaled loss
         scaler.scale(loss).backward()
+
+        # Append to loss_value array for logging
+        loss_value.append(loss.item())
+
+        # Scale the loss and step the optimizer
         scaler.step(optimizer.optimizer)
         scaler.update()
-        # nn.utils.clip_grad_norm_(model.rnn.parameters(), 5)
-        loss_value.append(loss.item())
+
+        # Zero the gradients
+        optimizer.zero_grad()
+
         if batch_idx % recoder.log_interval == 0:
             recoder.print_log(
                 '\tEpoch: {}, Batch({}/{}) done. Loss: {:.8f}  lr:{:.6f}'

@@ -99,7 +99,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
                 # representativeness into a single score!
                 similarity = cosineSimilarity(unlabeledFeature, labeledFeature)
 
-                if similarity > similarityRank[nameUnlabeledFeature]:
+                if similarity < similarityRank[nameUnlabeledFeature]:
                     similarityRank[nameUnlabeledFeature] = similarity
         
 
@@ -118,7 +118,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
         similarityRank = kCenter(newFeatUnlabeledSet, nLabelings)
 
 
-    similarityRank = { k: float(v[1]) for k, v in similarityRank.items() }
+        similarityRank = { k: float(v[1]) for k, v in similarityRank.items() }
     
 
     # Save the similarity ranking
