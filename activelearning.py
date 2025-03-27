@@ -120,7 +120,6 @@ if __name__ == '__main__':
     args = makeParser().parse_args()
     validateParams(args)
     
-    STRATEGY = "random"
     mostInformativeSamples = []
 
     runId = 1
@@ -153,20 +152,27 @@ if __name__ == '__main__':
         
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
+        
         # Delete files with non-optimal training weights
         subprocess.run(f"rm {args.work_dir}/{labeledSubsetName}/dev*.pt", shell=True, check=True)
+
+        # Move the train annotation file to the labeled work dir, so in case I need to export the results, I just have to
+        # zip the work dir folder instead of the work dir + dataset folders
+        shutil.copy(os.path.join(labeledSubsetPath, "phoenix-2014-multisigner/annotations/manual/train.corpus.csv"),
+                    os.path.join(args.work_dir, labeledSubsetName)
+                    )
         
         # Now, we start the part of the Active Learning loop where we look for significant samples in the unlabeled subset.
         # Run preprocess routine for the unlabeled subset
         preprocessRoutineWrapper(unlabeledSubsetPath, unlabeledSubsetName)
 
-        if STRATEGY == "active":
+        if args.strategy == "active":
             # Now we use our SlowFastModel that was trained on the labeledSubset to extract features from all the data in the labeled subset, 
             # and then the features for the videos in the unlabeled subset.
             
             # VERSAO CORRETA
-            subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
-            subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+            # subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+            # subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
             
 
             
@@ -194,16 +200,23 @@ if __name__ == '__main__':
 
             # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
             mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
-        
+                
+
+        # Prepare subset path for the next run
         newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)
         newUnlabeledSubsetPath = unlabeledSubsetPath.rstrip(str(runId)) + str(runId+1)
 
+        # Copy the data in the current dataset to the dataset of the next run
         copyDataset(labeledSubsetPath,   newLabeledSubsetPath,   copyAnnotations=True)
         copyDataset(unlabeledSubsetPath, newUnlabeledSubsetPath, copyAnnotations=True)
 
+        # Update unlabeledSubset[Name, Path] and labeledSubset[Name, Path]
         labeledSubsetPath   = newLabeledSubsetPath
         labeledSubsetName   = labeledSubsetPath.split("/")[-1]
         unlabeledSubsetPath = newUnlabeledSubsetPath
         unlabeledSubsetName = unlabeledSubsetPath.split("/")[-1]
 
+
+        # Add the samples in selectedSamples to the labeled set.
+        # Note that, if selectedSamples = [], samples will be randomly selected.
         labelDataPoints(labeledSubsetPath, unlabeledSubsetPath, args.n_labels, selectedSamples=mostInformativeSamples, isFirstLabelingLoop=False)
