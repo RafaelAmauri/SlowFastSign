@@ -46,6 +46,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
 
         confidences.append(currentConfidence)
 
+
     # Get the median confidence
     medianConfidence = np.median(confidences)
 
@@ -59,7 +60,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentConfidence = fileContent.item()['confidence']
 
         if currentConfidence < medianConfidence:
-            currentFeature = np.mean(currentFeature, axis=0)
+            currentFeature = currentFeature
 
             featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
 
@@ -112,6 +113,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
             # Strip the string and the _features.npy suffix to get only the name of the video.
             # The processed string will be something like "01April_2010_Thursday_heute_default-3"
             nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
+
             newFeatUnlabeledSet[nameUnlabeledFeature] = unlabeledFeature
 
 
@@ -119,7 +121,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
 
 
         similarityRank = { k: float(v[1]) for k, v in similarityRank.items() }
-    
+
 
     # Save the similarity ranking
     savePath = os.path.join(saveFolder, "SimilarityRank.json")

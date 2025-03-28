@@ -24,6 +24,7 @@ import yaml
 from active_learning_modules.dataset_utils import splitDataset, copyDataset
 from active_learning_modules.parser import makeParser, validateParams
 from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures, readFeaturesFromFile
+from active_learning_modules.rankByLength import selectLongestVideos, selectShortestVideos
 
 
 def preprocessRoutineWrapper(datasetPath: str, datasetName: str):
@@ -120,8 +121,6 @@ if __name__ == '__main__':
     args = makeParser().parse_args()
     validateParams(args)
     
-    mostInformativeSamples = []
-
     runId = 1
     # Creates a labeled and unlabeled subset of the dataset. They are called {datasetParentFolder}/{datasetName}-[labeled, unlabeled]-run{runId}
     labeledSubsetPath, unlabeledSubsetPath = splitDataset(args.dataset_path, args.custom_name, runId)
@@ -198,9 +197,21 @@ if __name__ == '__main__':
                                                             args.n_labels)
 
 
-            # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
-            mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
-                
+        # If the selection strategy is randomly sampling videos, we just send an empty list to labelDataPoints :)
+        elif args.strategy == "random":
+            mostInformativeSamples = {}
+
+        
+        elif args.strategy == "longest":
+            mostInformativeSamples = selectLongestVideos(unlabeledSubsetPath, f"{args.work_dir}/{labeledSubsetName}/")
+
+
+        elif args.strategy == "shortest":
+            mostInformativeSamples = selectShortestVideos(unlabeledSubsetPath, f"{args.work_dir}/{labeledSubsetName}/")
+
+
+        # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
+        mostInformativeSamples = [ key for key in list(mostInformativeSamples.keys())[ : args.n_labels] ]
 
         # Prepare subset path for the next run
         newLabeledSubsetPath   = labeledSubsetPath.rstrip(str(runId))   + str(runId+1)

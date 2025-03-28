@@ -45,21 +45,27 @@ def kCenter(points, nCenters: int) -> dict:
     """
     if nCenters > len(points):
         raise ValueError(f"The number of centers must be lower than the number of points. N points: {len(points)}, N centers: {nCenters}")
+    
 
+    # Before doing anything, we average out all the features across frames for each video to "compact" the frames into a single embedding
+    for pointName, point in points.items():
+        points[pointName] = np.mean(point, axis=0)
+
+    # We need to keep track of what points still remain
     remainingPoints = points.copy()
     selectedCenters = {}
     
-    # Pick an arbitrary starting point (first in the dictionary)
+    # We just need to get the shape of the first element to get our starting point.
+    # The starting point should be (featureShape, 0)
     _, firstPoint = next(iter(remainingPoints.items()))
     
-    # Pick an arbitrary starting point (0, 0)
     selectedCenters["origin"] = np.zeros_like(firstPoint)
     firstPoint = selectedCenters["origin"]
 
-    # Initialize minimum distances for remaining points from the first center
+    # Initialize distances from all points to the origin
     minDistances = {name: distance(firstPoint, i) for name, i in remainingPoints.items()}
     
-    # Select centers until we reach the desired number
+    # Select centers until we reach the desired number of centers
     while len(selectedCenters) <= nCenters:
         # Find the point with the maximum distance to its nearest center
         nextCenterName, nextCenterDistance = max(minDistances.items(), key=lambda x: x[1])
@@ -79,6 +85,7 @@ def kCenter(points, nCenters: int) -> dict:
 
     del selectedCenters["origin"]
     return selectedCenters
+
 
 '''
 points = {

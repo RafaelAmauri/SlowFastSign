@@ -51,6 +51,7 @@ similarity           = rankSimiliratyByFeatures(featuresLabeledSet,
                                                 nLabelings)
 
 
+
 sc1 = axs[0][0].scatter(unlabeledFeatures[..., 0], unlabeledFeatures[..., 1], c=unlabeledConfidences, vmin=0, vmax=1, cmap='cool', s=100, marker='s')
 axs[0][0].set_title('Unlabeled Set')
 axs[0][0].set_xlabel('Feature 1')

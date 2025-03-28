@@ -29,7 +29,7 @@ def makeParser():
     parser.add_argument('-c', '--custom-name', type=str, required=True,
                         help="A custom name for the experiment")
     
-    parser.add_argument('-s', '--strategy', type=str, choices=["random", "active"], required=True,
+    parser.add_argument('-s', '--strategy', type=str, choices=["random", "active", "shortest", "longest"], required=True,
                         help="Whether to use active learning or random sampling.")
 
     parser.add_argument('--device', type=str, required=False, default=0,
