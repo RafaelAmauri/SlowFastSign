@@ -14,10 +14,10 @@ def cosineSimilarity(feature1, feature2):
     # Calculate cosine similarity
     numerator  = np.dot(feature1, feature2.T)
 
-    norm_feat1 = np.linalg.norm(feature1, axis=1).reshape(-1, 1)
-    norm_feat2 = np.linalg.norm(feature2, axis=1).reshape(1, -1)
+    norm_feat1 = np.linalg.norm(feature1, axis=0).reshape(-1, 1)
+    norm_feat2 = np.linalg.norm(feature2, axis=0).reshape(1, -1)
     cosine     = numerator / (norm_feat1 * norm_feat2)
-
+    
     maxPerFrame = np.max(cosine, axis=1)
     
     return np.mean(maxPerFrame).astype(float)

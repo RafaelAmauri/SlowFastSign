@@ -23,7 +23,7 @@ import yaml
 
 from active_learning_modules.dataset_utils import splitDataset, copyDataset
 from active_learning_modules.parser import makeParser, validateParams
-from active_learning_modules.rankbyfeature import rankSimiliratyByFeatures, readFeaturesFromFile
+from active_learning_modules.rankByFeature import rankSimiliratyByFeatures, readFeaturesFromFile
 from active_learning_modules.rankByLength import selectLongestVideos, selectShortestVideos
 
 

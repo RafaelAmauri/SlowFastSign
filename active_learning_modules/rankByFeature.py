@@ -31,7 +31,6 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         fileContent = np.load(filePath, allow_pickle=True)
         
         currentFeature = fileContent.item()['features'].numpy()
-        currentFeature = np.mean(currentFeature, axis=0)
 
         featuresLabeledSet[filePath] = currentFeature
 
@@ -51,7 +50,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
     medianConfidence = np.median(confidences)
 
 
-    # Get the file paths for the features in the unlabeled set. Only add the samples where their confidence is < medianConfidence
+    # Get the file paths for the features in the unlabeled set.
     for file in os.listdir(unlabeledFeaturesPath):
         filePath    = os.path.join(unlabeledFeaturesPath, file)
         fileContent = np.load(filePath, allow_pickle=True)
@@ -59,6 +58,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentFeature    = fileContent.item()['features'].numpy()
         currentConfidence = fileContent.item()['confidence']
 
+        # Only add the samples where their confidence is < medianConfidence
         if currentConfidence < medianConfidence:
             currentFeature = currentFeature
 
@@ -116,17 +116,12 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
 
             newFeatUnlabeledSet[nameUnlabeledFeature] = unlabeledFeature
 
-
-        similarityRank = kCenter(newFeatUnlabeledSet, nLabelings)
-
-
-        similarityRank = { k: float(v[1]) for k, v in similarityRank.items() }
-
-
+        similarityRank = kCenter(newFeatUnlabeledSet)
+        
+        
     # Save the similarity ranking
     savePath = os.path.join(saveFolder, "SimilarityRank.json")
     with open(savePath, "w") as filePointer:
         json.dump(similarityRank, filePointer, indent=4)
-
 
     return similarityRank

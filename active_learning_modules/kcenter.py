@@ -1,8 +1,10 @@
 import numpy as np
+
+from tqdm import tqdm
 from collections import defaultdict
 
 
-def distance(vector1, vector2) -> float:
+def distance(vector1, vector2):
     """
     Calculated the eucledian distance between two N-dimensional vectors.
 
@@ -11,16 +13,16 @@ def distance(vector1, vector2) -> float:
         vector2 (numpy.typing.ArrayLike): An N-dimensional vector
 
     Returns:
-        float: The eucledian distance
+        np.typing.ArrayLike: The eucledian distance between every 
     """
-    if vector1.shape != vector2.shape:
-        raise ValueError(f"Vectors must have the same shape! Detected shapes: V1 = {vector1.shape}, V2 = {vector2.shape}")
-
-    return np.sqrt(np.sum((vector1 - vector2) ** 2))
+    return np.sqrt(np.sum((vector1 - vector2) ** 2, axis=1))
 
 
-
-def kCenter(points, nCenters: int) -> dict:
+# TODO
+# Demorou 5 horas para rodar e não terminou, tive que dar ctrl + C pra parar. Por favor, otimizar essa bagaça.
+# Opções: * Clusterizar os embeddings
+#         * Paralelizar o código de alguma maneira (DONE! - 6x speedup)
+def kCenter(videoFeatures) -> dict:
     """
     Finds K different centers in an N-dimensional space.
 
@@ -37,64 +39,92 @@ def kCenter(points, nCenters: int) -> dict:
     
 
     Args:
-        points (dict) : A dictionary of points, each as a numpy array.
-        nCenters (int): The number of centers (must be lower than or equal to the number of points).
+        videoFeatures (dict): A dictionary where the key is the video Id, and the value are the features for that video.
 
     Returns:
-        dict: _description_
+        dict: A dict where the key is the video Id, and the value is the ranking of said video.
     """
-    if nCenters > len(points):
-        raise ValueError(f"The number of centers must be lower than the number of points. N points: {len(points)}, N centers: {nCenters}")
+    # Each frame embedding is a vector of 2308 dimensions, but just in case I'll leave this here to keep
+    # the code adaptable.
+    frameFeatureDimensions = list(videoFeatures.values())[0].shape[-1]
+
+    # The origin is just an array of zeros with the same shape as each frame. If each frame
+    # is indeed 2308 dimensions, then the origin is just 2308 zeros.
+    origin                 = np.zeros(shape=(1, frameFeatureDimensions))
+
+    frameIdToVideoId       = {}
+    frameIdToFrameFeature  = {}
+
+    frameCount = 0
+    for videoName, features in videoFeatures.items():
+        for frameFeature in features:
+            frameIdToVideoId[frameCount]      = videoName
+            frameIdToFrameFeature[frameCount] = frameFeature
+
+            frameCount += 1
+
+
+    videoRank      = defaultdict(lambda: 0.0)
+    discountFactor = 0.95
+    
+    # Calculate the distance of all frames to the origin
+    frameFeatures = np.asarray(list(frameIdToFrameFeature.values()))
+    minDistances  = distance(origin, frameFeatures)
     
 
-    # Before doing anything, we average out all the features across frames for each video to "compact" the frames into a single embedding
-    for pointName, point in points.items():
-        points[pointName] = np.mean(point, axis=0)
+    # Every frame must have their "value" calculated
+    for _ in tqdm(range(frameCount), desc="Ranking videos", unit="frame"):
+        # Select the frame with the largest distance
+        selectedFrameId = np.argmax(minDistances)
 
-    # We need to keep track of what points still remain
-    remainingPoints = points.copy()
-    selectedCenters = {}
+        # The video ID is used to update the rank of the video from which the selected frame belongs to
+        selectedVideoId = frameIdToVideoId[selectedFrameId]
+
+        # The new rank of the video is 1 * the discount factor. Videos that get picked first
+        # get larger values.
+        videoRank[selectedVideoId] += discountFactor * 1
+
+        # Update the discount factor
+        discountFactor = discountFactor * 0.95
+
+        # Update the distance of the selected frame in minDistances (to avoid it getting picked again).
+        # I chose to update the value to -1, because this way we guarantee that it will never get picked again
+        minDistances[selectedFrameId] = -1
+
+
+        # Check if the distance from the selected frame to all the remaining frames
+        # is lesser than the stored distance of the remaining frames.
+        selectedFrameFeature    = frameIdToFrameFeature[selectedFrameId]
+        distanceRemainingFrames = distance(selectedFrameFeature, frameFeatures)
+        
+        # Create a mask for where the distance to the selected frame is lower than the stored distance
+        isRemainingFrameCloser = distanceRemainingFrames < minDistances
+
+        # Update min distances according to the mask 
+        minDistances[isRemainingFrameCloser] = distanceRemainingFrames[isRemainingFrameCloser]
     
-    # We just need to get the shape of the first element to get our starting point.
-    # The starting point should be (featureShape, 0)
-    _, firstPoint = next(iter(remainingPoints.items()))
-    
-    selectedCenters["origin"] = np.zeros_like(firstPoint)
-    firstPoint = selectedCenters["origin"]
 
-    # Initialize distances from all points to the origin
-    minDistances = {name: distance(firstPoint, i) for name, i in remainingPoints.items()}
-    
-    # Select centers until we reach the desired number of centers
-    while len(selectedCenters) <= nCenters:
-        # Find the point with the maximum distance to its nearest center
-        nextCenterName, nextCenterDistance = max(minDistances.items(), key=lambda x: x[1])
-        nextCenterCoordinates              = remainingPoints[nextCenterName]
-        selectedCenters[nextCenterName]    = [nextCenterCoordinates, nextCenterDistance]
+    # Order videos by most informative to least informative
+    videoRank = dict(sorted(videoRank.items(), key=lambda x: x[1], reverse=True))
 
-        # Remove the selected point from remaining points and min_distances
-        del remainingPoints[nextCenterName]
-        del minDistances[nextCenterName]
+    # Convert from numpy float to regular float. This is because json.dump() can't save numpy floats :(
+    videoRank = { k: float(v) for k, v in videoRank.items() }
 
-        # Update the minimum distances for the remaining points
-        for name, pt in remainingPoints.items():
-            d = distance(nextCenterCoordinates, pt)
-            if d < minDistances[name]:
-                minDistances[name] = d
-
-
-    del selectedCenters["origin"]
-    return selectedCenters
+    return videoRank
 
 
 '''
 points = {
-            "1": np.asarray([1,   1,  1,  1]),
-            "2": np.asarray([3,   3,  3,  3]),
-            "3": np.asarray([10, 10, 10, 10]),
-            "4": np.asarray([12, 12, 12, 12]),
-            "5": np.asarray([40, 40, 40, 40])
+            "Video1": np.asarray(   [
+                                        [1,1], [2,2]
+                                    ]
+                                ),
+
+            "Video2": np.asarray(   [
+                                        [1,1], [0.5,0.5]
+                                    ]
+                                )
 }
 
-print(kCenter(points, 5))
+kCenter(points)'
 '''
