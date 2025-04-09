@@ -5,7 +5,7 @@ import os
 from collections import defaultdict
 from tqdm import tqdm
 
-from active_learning_modules.kcenter import kCenter
+from active_learning_modules.kcenter import kCenter, distance
 from active_learning_modules.cosinesimilarity import cosineSimilarity
 
 
@@ -49,7 +49,6 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
     # Get the median confidence
     medianConfidence = np.median(confidences)
 
-
     # Get the file paths for the features in the unlabeled set.
     for file in os.listdir(unlabeledFeaturesPath):
         filePath    = os.path.join(unlabeledFeaturesPath, file)
@@ -59,7 +58,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
         currentConfidence = fileContent.item()['confidence']
 
         # Only add the samples where their confidence is < medianConfidence
-        if currentConfidence < medianConfidence:
+        if True: #currentConfidence < medianConfidence:
             currentFeature = currentFeature
 
             featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
@@ -69,7 +68,7 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
 
 
 
-def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dict, strategy: str, saveFolder: str, nLabelings: int) -> dict:
+def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dict, strategy: str, saveFolder: str) -> dict:
     """
     Given a set of features for the labeled and unlabeled sets, this function selects the top 'nLabelings' best samples
     in the unlabeled set that are the most different from the samples in the labeled set.
@@ -79,7 +78,6 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
         featuresUnlabeledSet (dict): The dict containing the features for the unlabeled set. Key = video name, Value = features, confidence
         strategy              (str): The selection strategy. Can be "cosine" or "kcenter".
         saveFolder            (str): The folder where to save the rank for best samples
-        nLabelings            (int): How many samples should be selected from the unlabeled set.
 
     Returns:
         dict: The ranking for every sample in the unlabeled set.
@@ -109,14 +107,31 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
 
     elif strategy == "kcenter":
         newFeatUnlabeledSet = dict()
-        for nameUnlabeledFeature, (unlabeledFeature, _) in tqdm(featuresUnlabeledSet.items()):
+        newFeatLabeledSet   = dict()
+        for nameUnlabeledFeature, (unlabeledFeature, _) in featuresUnlabeledSet.items():
             # Strip the string and the _features.npy suffix to get only the name of the video.
             # The processed string will be something like "01April_2010_Thursday_heute_default-3"
             nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
 
             newFeatUnlabeledSet[nameUnlabeledFeature] = unlabeledFeature
+            
+            # TODO Ver qual métrica de distância é melhor
+            #print(nameUnlabeledFeature, unlabeledFeature.shape)
 
-        similarityRank = kCenter(newFeatUnlabeledSet)
+            #a = np.expand_dims(unlabeledFeature[9], axis=0)
+            #b = np.expand_dims(unlabeledFeature[26], axis=0)
+
+            #print(f"Cosine Similarity:  {cosineSimilarity(a, b)}")
+            #print(f"Eucledian Distance: {distance(a, b)}")
+
+            #raise Exception
+        
+        for nameLabeledFeature, labeledFeature in featuresLabeledSet.items():
+            nameLabeledFeature = nameLabeledFeature.split("/")[-1].removesuffix("_features.npy")
+
+            newFeatLabeledSet[nameLabeledFeature] = labeledFeature
+
+        similarityRank = kCenter(newFeatUnlabeledSet, newFeatLabeledSet)
         
         
     # Save the similarity ranking

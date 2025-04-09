@@ -152,8 +152,10 @@ if __name__ == '__main__':
         # Train gloss generator on labeled subset
         subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
         
-        # Delete files with non-optimal training weights
+
+        # Delete models with non-optimal training weights
         subprocess.run(f"rm {args.work_dir}/{labeledSubsetName}/dev*.pt", shell=True, check=True)
+
 
         # Move the train annotation file to the labeled work dir, so in case I need to export the results, I just have to
         # zip the work dir folder instead of the work dir + dataset folders
@@ -173,7 +175,6 @@ if __name__ == '__main__':
             subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
             subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
             
-
             
             #VERSAO DEBUG
             
@@ -193,8 +194,8 @@ if __name__ == '__main__':
             mostInformativeSamples = rankSimiliratyByFeatures(featuresLabeledSet, 
                                                             featuresUnlabeledSet,
                                                             "kcenter",
-                                                            f"{args.work_dir}/{labeledSubsetName}/",
-                                                            args.n_labels)
+                                                            f"{args.work_dir}/{labeledSubsetName}/"
+                                                            )
 
 
         # If the selection strategy is randomly sampling videos, we just send an empty list to labelDataPoints :)
@@ -208,6 +209,7 @@ if __name__ == '__main__':
 
         elif args.strategy == "shortest":
             mostInformativeSamples = selectShortestVideos(unlabeledSubsetPath, f"{args.work_dir}/{labeledSubsetName}/")
+
 
 
         # Get only the args.n_labels most informative ones and format the dictionary into a list so its easier to match entries with the unlabeled pool.
