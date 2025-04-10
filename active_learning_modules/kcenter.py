@@ -88,27 +88,27 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
         # Update the mindistances where the current distances are smaller than the stored ones
         maskUpdate = d < minDistances
         minDistances[maskUpdate] = d[maskUpdate]
-
+        
     
-    print(minDistances.shape)
 
     # The discount factor influences how much later-selected videos affect the ranking
-    discountFactor = 1
+    baseDiscountFactor = 0.95
+    discountFactor     = baseDiscountFactor
     # The discount factor will only be updated every 'discountFactorUpdateFrequency' iterations
-    discountFactorUpdateFrequency = 283
+    discountFactorUpdateFrequency = 550
     # Because the discount factor can get really low, when it gets below 'discountFactorStop'
     # we early stop the iterations
-    discountFactorStop = 0.000001
+    discountFactorStop = 0.01
     
     # With the informations above, it is possible to calculate exactly how many iterations there will be
-    numIterations = frameId #int(np.emath.logn(n=discountFactor, x=discountFactorStop) ) * discountFactorUpdateFrequency
+    numIterations = int(np.emath.logn(n=discountFactor, x=discountFactorStop) ) * discountFactorUpdateFrequency
 
     print(f"Selecting {numIterations} out of {frameId} frames ({100 * numIterations / frameId:.2f}%)")
 
     # Every frame must have their "value" calculated
     for i in tqdm(range(numIterations), desc="Ranking videos", unit="frame"):
 
-        # TODO
+        # TODO Descobrir porque esses vídeos longos não estão sendo selecionados
         #print(videoRank["09July_2009_Thursday_tagesschau_default-3"])
         #print(videoRank["23September_2009_Wednesday_tagesschau_default-6"])
         #print(videoRank["25August_2009_Tuesday_heute_default-5"])
@@ -128,12 +128,12 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
 
         # The new rank of the video is 1 * the discount factor. Videos that get picked first
         # get larger values.
-        videoRank[selectedVideoId] += discountFactor * 1
-
+        videoRank[selectedVideoId] += discountFactor
+        print(f"Added {discountFactor} to {selectedVideoId}")
 
         # Update the discount factor every 'discountFactorUpdateFrequency' epochs
         if ( (i+1) % discountFactorUpdateFrequency) == 0:
-            discountFactor = discountFactor * discountFactor
+            discountFactor = discountFactor * baseDiscountFactor
 
 
         # Update the distance of the selected frame in minDistances (to avoid it getting picked again).
