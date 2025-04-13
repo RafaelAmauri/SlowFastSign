@@ -26,7 +26,7 @@ def makeParser():
     parser.add_argument('-w', '--work-dir', type=str, required=True,
                         help="Where to save the outputs for inference and training.")
     
-    parser.add_argument('-c', '--custom-name', type=str, required=True,
+    parser.add_argument('-n', '--custom-name', type=str, required=True,
                         help="A custom name for the experiment")
     
     parser.add_argument('-s', '--strategy', type=str, choices=["random", "active", "shortest", "longest"], required=True,
@@ -34,6 +34,10 @@ def makeParser():
 
     parser.add_argument('--device', type=str, required=False, default=0,
                         help="What GPU to use during training and inference. Default=0.")
+
+    parser.add_argument('--config', '-c', type=str, required=True,
+                        help="The config file for slowfastsign. Should be something like configs/baseline.yaml, or another custom config.")
+
 
     return parser
 

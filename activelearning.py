@@ -150,7 +150,7 @@ if __name__ == '__main__':
         preprocessRoutineWrapper(labeledSubsetPath, labeledSubsetName)
         
         # Train gloss generator on labeled subset
-        subprocess.run(f"python3 main.py --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
+        subprocess.run(f"python3 main.py --config {args.config} --device {args.device} --dataset {labeledSubsetName} --loss-weights Slow=0.25 Fast=0.25 --work-dir {args.work_dir}/{labeledSubsetName}", shell=True, check=True)
         
 
         # Delete models with non-optimal training weights
@@ -172,14 +172,14 @@ if __name__ == '__main__':
             # and then the features for the videos in the unlabeled subset.
             
             # VERSAO CORRETA
-            subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
-            subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+            subprocess.run(f"python main.py --config {args.config} --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+            subprocess.run(f"python main.py --config {args.config} --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights {args.work_dir}/{labeledSubsetName}/_best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
             
             
             #VERSAO DEBUG
             
-            # subprocess.run(f"python main.py --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
-            # subprocess.run(f"python main.py --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
+            # subprocess.run(f"python main.py --config {args.config} --device {args.device} --dataset {labeledSubsetName}   --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{labeledSubsetName}-features   --feature-folders train --test-batch-size 1", shell=True, check=True)
+            # subprocess.run(f"python main.py --config {args.config} --device {args.device} --dataset {unlabeledSubsetName} --phase features --load-weights best_checkpoints/best_model.pt --work-dir {args.work_dir}/{unlabeledSubsetName}-features --feature-folders test  --test-batch-size 1 --test-inference ", shell=True, check=True)
             
 
             # These point to the folder containing the extracted features for each video
