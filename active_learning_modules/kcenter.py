@@ -92,22 +92,26 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
     
 
     # The discount factor influences how much later-selected videos affect the ranking
-    baseDiscountFactor = 0.95
-    discountFactor     = baseDiscountFactor
+    frameValue     = 1.0
+    discountFactor = 0.95
     # The discount factor will only be updated every 'discountFactorUpdateFrequency' iterations
-    discountFactorUpdateFrequency = 550
+    # The higher this value, the more likely longer videos are to get picked
+    discountFactorUpdateFrequency = 3
     # Because the discount factor can get really low, when it gets below 'discountFactorStop'
     # we early stop the iterations
     discountFactorStop = 0.01
+
+    # TODO move this up
+    discountFactor = discountFactorStop ** (1/frameId)
+    
     
     # With the informations above, it is possible to calculate exactly how many iterations there will be
-    numIterations = int(np.emath.logn(n=discountFactor, x=discountFactorStop) ) * discountFactorUpdateFrequency
-
+    numIterations = frameId #int(np.emath.logn(n=discountFactor, x=discountFactorStop) ) * discountFactorUpdateFrequency
+    print(numIterations)
     print(f"Selecting {numIterations} out of {frameId} frames ({100 * numIterations / frameId:.2f}%)")
 
     # Every frame must have their "value" calculated
     for i in tqdm(range(numIterations), desc="Ranking videos", unit="frame"):
-
         # TODO Descobrir porque esses vídeos longos não estão sendo selecionados
         #print(videoRank["09July_2009_Thursday_tagesschau_default-3"])
         #print(videoRank["23September_2009_Wednesday_tagesschau_default-6"])
@@ -128,12 +132,19 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
 
         # The new rank of the video is 1 * the discount factor. Videos that get picked first
         # get larger values.
-        videoRank[selectedVideoId] += discountFactor
-        print(f"Added {discountFactor} to {selectedVideoId}")
+        videoRank[selectedVideoId] += frameValue
+
+        #TODO There's a problem! If two videos have the same ammount of ranking,
+        # then the one that comes first alphabetically is picked rather than the one
+        # that came first! This is wrong! Find out a way to force the video that was picked first
+        # to always come first! Consider adding to a list rather than updating the videoRank
+        # dict in-place directly. Update it after using the list!
+        print(f"Picked video {selectedVideoId}")
 
         # Update the discount factor every 'discountFactorUpdateFrequency' epochs
         if ( (i+1) % discountFactorUpdateFrequency) == 0:
-            discountFactor = discountFactor * baseDiscountFactor
+            frameValue = frameValue * discountFactor
+
 
 
         # Update the distance of the selected frame in minDistances (to avoid it getting picked again).

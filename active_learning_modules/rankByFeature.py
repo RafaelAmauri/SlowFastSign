@@ -108,7 +108,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
     elif strategy == "kcenter":
         newFeatUnlabeledSet = dict()
         newFeatLabeledSet   = dict()
-        for nameUnlabeledFeature, (unlabeledFeature, _) in featuresUnlabeledSet.items():
+        for nameUnlabeledFeature, unlabeledFeature in featuresUnlabeledSet.items():
             # Strip the string and the _features.npy suffix to get only the name of the video.
             # The processed string will be something like "01April_2010_Thursday_heute_default-3"
             nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
