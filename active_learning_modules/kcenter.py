@@ -40,7 +40,6 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
     Returns:
         dict: A dict where the key is the video Id, and the value is the ranking of said video.
     """
-
     # The videoRank is a dict where each video has a starting rank of 0, and it increases as
     # frames belonging to said video get selected.
     videoRank              = {}
@@ -64,7 +63,6 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
 
             frameId += 1
 
-
     # These are all the frame-wise features bundled up in an array of shape
     # (numberOfFrames, 1024)
     unlabeledFrameFeatures = np.asarray(list(frameIdToFrameFeature.values()))
@@ -76,7 +74,7 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
             aux.append(frameFeature)
 
     labeledFeatures = np.asarray(aux)
-
+    
     # Calculates the distance from the first labeled frame to every unlabeled frame as a baseline
     minDistances  = distance(labeledFeatures[0], unlabeledFrameFeatures)
     
@@ -94,36 +92,27 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
     # The discount factor influences how much later-selected videos affect the ranking
     frameValue     = 1.0
     discountFactor = 0.95
-    # The discount factor will only be updated every 'discountFactorUpdateFrequency' iterations
-    # The higher this value, the more likely longer videos are to get picked
-    discountFactorUpdateFrequency = 3
+
     # Because the discount factor can get really low, when it gets below 'discountFactorStop'
     # we early stop the iterations
     discountFactorStop = 0.01
 
-    # TODO move this up
-    discountFactor = discountFactorStop ** (1/frameId)
-    
-    
-    # With the informations above, it is possible to calculate exactly how many iterations there will be
-    numIterations = frameId #int(np.emath.logn(n=discountFactor, x=discountFactorStop) ) * discountFactorUpdateFrequency
-    print(numIterations)
-    print(f"Selecting {numIterations} out of {frameId} frames ({100 * numIterations / frameId:.2f}%)")
+
+    # The discount factor will only be updated every 'discountFactorUpdateFrequency' iterations
+
+    # This max(1, frameId // np.emath()) nonsense looks scary, but hear me out.... np.emath.logn(n=discountFactor, x=discountFactorStop) tells us the amount of times 
+    # that we can multiply discountFactor by itself before it reaches discountFactorStop.
+    # We then take this number and divide the number of frames by it. This new number will
+    # tell us how many frames we should go over before each update to the discount factor.
+
+    # TODO
+    # There's a concern that doing this can have a bias towards longer videos, but IDK.
+    discountFactorUpdateFrequency = max(1, frameId // np.emath.logn(n=discountFactor, x=discountFactorStop))
+
+    numFrames = frameId
 
     # Every frame must have their "value" calculated
-    for i in tqdm(range(numIterations), desc="Ranking videos", unit="frame"):
-        # TODO Descobrir porque esses vídeos longos não estão sendo selecionados
-        #print(videoRank["09July_2009_Thursday_tagesschau_default-3"])
-        #print(videoRank["23September_2009_Wednesday_tagesschau_default-6"])
-        #print(videoRank["25August_2009_Tuesday_heute_default-5"])
-        #print(videoRank["12July_2009_Sunday_tagesschau_default-14"])
-        #print(videoRank["27August_2009_Thursday_tagesschau_default-9"])
-        #print(videoRank["25August_2009_Tuesday_tagesschau_default-5"])
-        #print(videoRank["09August_2009_Sunday_tagesschau_default-15"])
-        #print(videoRank["23July_2009_Thursday_tagesschau_default-6"])
-        #print(videoRank["05May_2010_Wednesday_tagesschau_default-9"])
-
-
+    for i in tqdm(range(numFrames), desc="Ranking videos", unit="frame"):
         # Select the frame with the largest distance
         selectedFrameId = np.argmax(minDistances)
 
@@ -134,12 +123,11 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
         # get larger values.
         videoRank[selectedVideoId] += frameValue
 
-        #TODO There's a problem! If two videos have the same ammount of ranking,
+        #TODO There's a potential problem! If two videos have the same ammount of ranking,
         # then the one that comes first alphabetically is picked rather than the one
         # that came first! This is wrong! Find out a way to force the video that was picked first
         # to always come first! Consider adding to a list rather than updating the videoRank
         # dict in-place directly. Update it after using the list!
-        print(f"Picked video {selectedVideoId}")
 
         # Update the discount factor every 'discountFactorUpdateFrequency' epochs
         if ( (i+1) % discountFactorUpdateFrequency) == 0:
@@ -171,20 +159,3 @@ def kCenter(unlabeledFeatures, labeledFeatures) -> dict:
     videoRank = { k: float(v) for k, v in videoRank.items() }
 
     return videoRank
-
-
-'''
-points = {
-            "Video1": np.asarray(   [
-                                        [1,1], [2,2]
-                                    ]
-                                ),
-
-            "Video2": np.asarray(   [
-                                        [1,1], [0.5,0.5]
-                                    ]
-                                )
-}
-
-kCenter(points)'
-'''

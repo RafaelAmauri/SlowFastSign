@@ -12,17 +12,17 @@ yAxisLimit = 400
 nLabeledSamples    = 1
 nUnlabeledSamples  = 5
 nFeatureDimensions = 2
-nFrames            = 1
-nLabelings         = 1
+nFrames            = 2
+nLabelings         = 2
 strategy           = "kcenter" # Can be "cosine" or "kcenter"
 
 
 # Generate a bunch of features for the labeled and unlabeled sets
 #labeledFeatures   = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nLabeledSamples)])
-labeledFeatures   = np.asarray([[[200,200]]])
+labeledFeatures   = np.asarray([[[200,200], [200,200]]])
 unlabeledFeatures = np.asarray([[[random.randint(1, xAxisLimit) for _ in range(nFeatureDimensions)] for _ in range(nFrames)] for _ in range(nUnlabeledSamples)])
 
-unlabeledFeatures = np.concatenate([unlabeledFeatures, [[[400,400]]]], axis=0)
+unlabeledFeatures = np.concatenate([unlabeledFeatures, [[[0, 0], [400,400]]]], axis=0)
 nUnlabeledSamples+= 1
 
 # This converts the labeled and unlabeledFeatures arrays from the shape

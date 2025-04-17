@@ -23,45 +23,34 @@ def readFeaturesFromFile(labeledFeaturesPath: str, unlabeledFeaturesPath: str)->
     featuresLabeledSet   = dict()
     featuresUnlabeledSet = dict()
 
-    confidences = []
-
-    # Get the file paths for the features in the labeled set
+    # Get the file paths for the features in the LABELED set
     for file in os.listdir(labeledFeaturesPath):
         filePath    = os.path.join(labeledFeaturesPath, file)
         fileContent = np.load(filePath, allow_pickle=True)
         
+        # Get the features from the .npy file
         currentFeature = fileContent.item()['features'].numpy()
+
+        # Strip the string and the _features.npy suffix to get only the name of the video.
+        # The processed string will be something like "01April_2010_Thursday_heute_default-3"
+        fileName = filePath.split("/")[-1].removesuffix("_features.npy")
 
         featuresLabeledSet[filePath] = currentFeature
 
-    # Doing this twice is unfortunate, but it's an easy way to get all the confidence scores in a single array.
-    # This way we can filter the number of samples in the unlabeled set to be only the ones where their confidence
-    # score is < np.median(confidences)
+
+    # Get the file paths for the features in the UNLABELED set.
     for file in os.listdir(unlabeledFeaturesPath):
         filePath    = os.path.join(unlabeledFeaturesPath, file)
         fileContent = np.load(filePath, allow_pickle=True)
 
-        currentConfidence = fileContent.item()['confidence']
-
-        confidences.append(currentConfidence)
-
-
-    # Get the median confidence
-    medianConfidence = np.median(confidences)
-
-    # Get the file paths for the features in the unlabeled set.
-    for file in os.listdir(unlabeledFeaturesPath):
-        filePath    = os.path.join(unlabeledFeaturesPath, file)
-        fileContent = np.load(filePath, allow_pickle=True)
-        
+        # Get the features from the .npy file
         currentFeature    = fileContent.item()['features'].numpy()
-        currentConfidence = fileContent.item()['confidence']
 
-        # Only add the samples where their confidence is < medianConfidence
-        if True: #currentConfidence < medianConfidence:
-            currentFeature = currentFeature
+        # Strip the string and the _features.npy suffix to get only the name of the video.
+        # The processed string will be something like "01April_2010_Thursday_heute_default-3"
+        fileName = filePath.split("/")[-1].removesuffix("_features.npy")
 
-            featuresUnlabeledSet[filePath] = (currentFeature, currentConfidence)
+        featuresUnlabeledSet[fileName] = currentFeature
 
 
     return featuresLabeledSet, featuresUnlabeledSet
@@ -96,7 +85,7 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
             for _, labeledFeature in featuresLabeledSet.items():
                 # The similarity is the confidence score + the cosine similarity. This aggregates uncertainty and
                 # representativeness into a single score!
-                similarity = cosineSimilarity(unlabeledFeature, labeledFeature)
+                similarity = cosineSimilarity(unlabeledFeature, labeledFeature) # + confidence
 
                 if similarity < similarityRank[nameUnlabeledFeature]:
                     similarityRank[nameUnlabeledFeature] = similarity
@@ -105,33 +94,19 @@ def rankSimiliratyByFeatures(featuresLabeledSet: dict, featuresUnlabeledSet: dic
         similarityRank = dict(sorted(similarityRank.items(), key=lambda x:x[1]))
 
 
+    # TODO Ver qual métrica de distância é melhor
+    #print(nameUnlabeledFeature, unlabeledFeature.shape)
+
+    #a = np.expand_dims(unlabeledFeature[9], axis=0)
+    #b = np.expand_dims(unlabeledFeature[26], axis=0)
+
+    #print(f"Cosine Similarity:  {cosineSimilarity(a, b)}")
+    #print(f"Eucledian Distance: {distance(a, b)}")
+
+    #raise Exception
+
     elif strategy == "kcenter":
-        newFeatUnlabeledSet = dict()
-        newFeatLabeledSet   = dict()
-        for nameUnlabeledFeature, unlabeledFeature in featuresUnlabeledSet.items():
-            # Strip the string and the _features.npy suffix to get only the name of the video.
-            # The processed string will be something like "01April_2010_Thursday_heute_default-3"
-            nameUnlabeledFeature = nameUnlabeledFeature.split("/")[-1].removesuffix("_features.npy")
-
-            newFeatUnlabeledSet[nameUnlabeledFeature] = unlabeledFeature
-            
-            # TODO Ver qual métrica de distância é melhor
-            #print(nameUnlabeledFeature, unlabeledFeature.shape)
-
-            #a = np.expand_dims(unlabeledFeature[9], axis=0)
-            #b = np.expand_dims(unlabeledFeature[26], axis=0)
-
-            #print(f"Cosine Similarity:  {cosineSimilarity(a, b)}")
-            #print(f"Eucledian Distance: {distance(a, b)}")
-
-            #raise Exception
-        
-        for nameLabeledFeature, labeledFeature in featuresLabeledSet.items():
-            nameLabeledFeature = nameLabeledFeature.split("/")[-1].removesuffix("_features.npy")
-
-            newFeatLabeledSet[nameLabeledFeature] = labeledFeature
-
-        similarityRank = kCenter(newFeatUnlabeledSet, newFeatLabeledSet)
+        similarityRank = kCenter(featuresUnlabeledSet, featuresLabeledSet)
         
         
     # Save the similarity ranking
